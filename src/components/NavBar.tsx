@@ -5,16 +5,23 @@ import {
   X,
   ChevronDown,
   ChevronUp,
-  LogOut,
 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
-import { useUser } from "@civic/auth/react";
+import { useUser, UserButton } from "@civic/auth-web3/react";
 import { userHasWallet } from "@civic/auth-web3";
-import { Copy, Wallet, ExternalLink, Check } from "lucide-react";
+import { Copy, Wallet, ExternalLink, Check, LogOut } from "lucide-react";
 import { Connection, LAMPORTS_PER_SOL, PublicKey } from "@solana/web3.js";
 
 interface NavBarProps {
   goToCreatorSignupPage: () => void;
+}
+
+declare global {
+  interface Window {
+    civicWeb3?: {
+      createWallet?: () => Promise<void>;
+    };
+  }
 }
 
 export default function NavBar({
@@ -23,9 +30,7 @@ export default function NavBar({
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [mobileDropdownOpen, setMobileDropdownOpen] = useState(false);
-  const { signIn, user, signOut } = useUser();
-  const [signingIn, setSigningIn] = useState(false);
-  const [signingOut, setSigningOut] = useState(false);
+  const userContext = useUser();
   const dropdownRef = useRef<HTMLDivElement>(null);
   const mobileDropdownRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
@@ -35,21 +40,23 @@ export default function NavBar({
   const [isLoadingBalance, setIsLoadingBalance] = useState(false);
   const [isCopied, setIsCopied] = useState(false);
 
-  const handleSignIn = useCallback(() => {
-    setSigningIn(true);
-    Promise.resolve(signIn())
-      .finally(() => setSigningIn(false));
-  }, [signIn]);
+    console.log("Civic user context:", userContext);
+    console.log("userContext.solana:", userContext.solana);
+    console.log("userContext.solana?.address:", userContext.solana?.address);
 
   const handleSignOut = useCallback(() => {
-    setSigningOut(true);
-    Promise.resolve(signOut())
-      .finally(() => {
-        setSigningOut(false);
+    try {
+      if (userContext.signOut) {
+        userContext.signOut();
         setDropdownOpen(false);
         setMobileDropdownOpen(false);
-      });
-  }, [signOut]);
+        setWalletAddress(null);
+        setWalletBalance(null);
+      }
+    } catch (error) {
+      console.error("Failed to sign out:", error);
+    }
+  }, [userContext]);
 
   const minifyAddress = (address: string | null): string => {
     if (!address) return "";
@@ -70,6 +77,7 @@ export default function NavBar({
       setIsLoadingBalance(true);
       const rpcEndpoint = "https://api.devnet.solana.com";
       const connection = new Connection(rpcEndpoint);
+      
       let solanaPublicKey;
       if (typeof publicKey === 'string') {
         solanaPublicKey = new PublicKey(publicKey);
@@ -78,11 +86,16 @@ export default function NavBar({
       } else if (publicKey.toString) {
         solanaPublicKey = new PublicKey(publicKey.toString());
       } else {
+        console.error("Invalid public key format:", publicKey);
         throw new Error("Invalid public key format");
       }
+      
+      console.log('Fetching balance for:', solanaPublicKey.toString());
       const balance = await connection.getBalance(solanaPublicKey);
+      console.log('Balance fetched:', balance / LAMPORTS_PER_SOL, 'SOL');
       setWalletBalance(balance / LAMPORTS_PER_SOL);
     } catch (error) {
+      console.error("Error fetching wallet balance:", error);
       setWalletBalance(null);
     } finally {
       setIsLoadingBalance(false);
@@ -91,31 +104,68 @@ export default function NavBar({
 
   React.useEffect(() => {
     async function initializeWallet() {
-      if (!user) {
-        setWalletAddress(null);
-        setWalletBalance(null);
-        return;
-      }
-      if (userHasWallet(user)) {
-        let address = null;
-        if ((user as any).solana?.address) {
-          address = (user as any).solana.address;
-        } else if ((user as any).solana?.wallet?.publicKey?.toString()) {
-          address = (user as any).solana.wallet.publicKey.toString();
-        } else if ((user as any).publicKey?.toString()) {
-          address = (user as any).publicKey.toString();
+      try {
+        if (!userContext.user) {
+          setWalletAddress(null);
+          setWalletBalance(null);
+          return;
         }
-        if (address) {
-          setWalletAddress(address);
-          await fetchWalletBalance(address);
+
+        console.log('Civic user context:', userContext);
+        console.log('userContext.solana:', userContext.solana);
+
+        // Check if user has a Solana wallet address
+        if (userContext.solana?.address) {
+          const walletAddress = userContext.solana.address;
+          console.log('Solana wallet address found:', walletAddress);
+          
+          setWalletAddress(walletAddress);
+          await fetchWalletBalance(walletAddress);
+        } else if (userContext.createWallet) {
+          // User doesn't have a wallet, try to create one
+          try {
+            setIsCreatingWallet(true);
+            console.log('Creating wallet...');
+            await userContext.createWallet();
+            
+            // After wallet creation, check again
+            const newWalletAddress = userContext.solana?.address;
+            console.log('New Solana wallet address:', newWalletAddress);
+            
+            if (newWalletAddress) {
+              setWalletAddress(newWalletAddress);
+              await fetchWalletBalance(newWalletAddress);
+            }
+          } catch (error) {
+            console.error("Failed to create wallet:", error);
+          } finally {
+            setIsCreatingWallet(false);
+          }
+        } else {
+          setWalletAddress(null);
+          setWalletBalance(null);
         }
-      } else {
+      } catch (error) {
+        console.error("Error in wallet initialization:", error);
         setWalletAddress(null);
         setWalletBalance(null);
       }
     }
+
     initializeWallet();
-  }, [user]);
+  }, [userContext]);
+
+  // Additional effect to handle wallet changes
+  React.useEffect(() => {
+    if (userContext.user && userContext.solana?.address) {
+      const walletAddress = userContext.solana.address;
+      console.log('Solana wallet changed, new address:', walletAddress);
+      setWalletAddress(walletAddress);
+      fetchWalletBalance(walletAddress);
+    }
+  }, [userContext.solana?.address]);
+
+
 
   // Close dropdown on outside click
   // Desktop
@@ -186,29 +236,11 @@ export default function NavBar({
               size={18}
             />
           </div>
-          {!user && (
-            <button
-              onClick={handleSignIn}
-              className={`px-4 py-2 bg-blue-500 text-white rounded-full hover:bg-blue-600 transition duration-300 relative overflow-hidden ${signingIn ? 'opacity-80 cursor-not-allowed' : ''}`}
-              disabled={signingIn}
-            >
-              {signingIn ? (
-                <span className="absolute inset-0 flex items-center justify-center">
-                  <span className="block w-5 h-5 rounded-full bg-gradient-to-r from-blue-400 via-blue-200 to-blue-400 animate-pulse" />
-                </span>
-              ) : (
-                'Sign In'
-              )}
-              {/* <span className={signingIn ? 'invisible' : ''}>Sign In</span> */}
-            </button>
-          )}
+
           {/* Desktop user/account section */}
-          {signingOut ? (
-            <div className="flex items-center px-4 py-2 bg-gray-100 rounded-full animate-pulse min-w-[160px] min-h-[40px]">
-              <div className="w-8 h-8 rounded-full bg-gray-200 mr-2" />
-              <div className="h-4 w-24 bg-gray-200 rounded" />
-            </div>
-          ) : user && (
+          {!userContext.user ? (
+            <UserButton />
+          ) : (
             <div className="relative" ref={dropdownRef}>
               <button
                 onClick={() => setDropdownOpen((open) => !open)}
@@ -216,7 +248,7 @@ export default function NavBar({
               >
                 {/* Avatar */}
                 <img
-                  src={user.picture || "/default-avatar.png"}
+                  src={userContext.user.picture || "/default-avatar.png"}
                   alt="avatar"
                   className="w-8 h-8 rounded-full object-cover mr-2 border border-gray-300"
                   onError={(e) => {
@@ -224,7 +256,7 @@ export default function NavBar({
                   }}
                 />
                 <span className="mr-2">
-                  {user.email ? user.email : "Account"}
+                  {userContext.user.email ? userContext.user.email : "Account"}
                 </span>
                 {dropdownOpen ? (
                   <ChevronUp size={18} />
@@ -237,7 +269,7 @@ export default function NavBar({
                   <div className="px-4 py-2 border-b border-gray-100">
                     <div className="flex items-center space-x-3 mb-2">
                       <img
-                        src={user.picture || "/default-avatar.png"}
+                        src={userContext.user.picture || "/default-avatar.png"}
                         alt="avatar"
                         className="w-10 h-10 rounded-full object-cover border border-gray-300"
                         onError={(e) => {
@@ -245,7 +277,7 @@ export default function NavBar({
                         }}
                       />
                       <div>
-                        <p className="font-medium text-gray-800">{user.email ? user.email : "Account"}</p>
+                        <p className="font-bold text-gray-800">{userContext.user.email ? userContext.user.email : "Account"}</p>
                         <p className="text-xs text-gray-500">Authenticated with Civic</p>
                       </div>
                     </div>
@@ -253,46 +285,63 @@ export default function NavBar({
                   {/* Wallet Section */}
                   <div className="px-4 py-2 border-b border-gray-100">
                     <div className="flex items-center justify-between text-sm mb-2">
+                      <span className="text-gray-500">Authentication</span>
+                      <span className="text-green-600 flex items-center">
+                        <Check className="h-3 w-3 mr-1" /> Verified
+                      </span>
+                    </div>
+
+                    <div className="flex items-center justify-between text-sm mb-2">
                       <span className="text-gray-500">Wallet</span>
                       {isCreatingWallet ? (
                         <span className="text-gray-400 text-xs">Creating...</span>
                       ) : walletAddress ? (
-                        <span className="text-green-600 flex items-center"><Check className="h-3 w-3 mr-1" /> Connected</span>
+                        <span className="text-green-600 flex items-center">
+                          <Check className="h-3 w-3 mr-1" /> Connected
+                        </span>
                       ) : (
                         <span className="text-gray-400 text-xs">Not connected</span>
                       )}
                     </div>
+
                     {walletAddress && (
                       <div className="bg-gray-50 p-2 rounded flex items-center justify-between">
                         <div className="flex items-center">
-                          <Wallet className="h-4 w-4 text-gray-700 mr-2" />
-                          <span className="text-xs font-mono text-gray-700" title={walletAddress}>
+                          <Wallet className="h-3 w-3 text-gray-700 mr-2" />
+                          <span
+                            className="text-xs font-mono text-gray-700"
+                            title={walletAddress}
+                          >
                             {minifyAddress(walletAddress)}
                           </span>
                         </div>
                         <div className="flex items-center space-x-1">
                           <a
-                            href={`https://explorer.solana.com/address/${walletAddress}`}
+                            href={`https://explorer.solana.com/address/${walletAddress}?cluster=devnet`}
                             target="_blank"
                             rel="noopener noreferrer"
-                            title="View on Solana Explorer"
-                            className="text-gray-400 hover:text-gray-700"
+                            title="View on Solana Explorer (Devnet)"
+                            className="text-gray-400 hover:text-gray-700 transition-colors"
                           >
-                            <ExternalLink className="h-4 w-4" />
+                            <ExternalLink className="h-3 w-3" />
                           </a>
                           <button
-                            className="ml-1 text-gray-400 hover:text-gray-700"
+                            className="text-gray-400 hover:text-gray-700"
                             onClick={copyToClipboard}
                             title="Copy wallet address"
                           >
-                            <Copy className={`h-4 w-4 ${isCopied ? "text-green-600" : ""}`} />
+                            <Copy
+                              className={`h-3 w-3 ${
+                                isCopied ? "text-green-600" : ""
+                              }`}
+                            />
                           </button>
                         </div>
                       </div>
                     )}
                     {walletBalance !== null && (
-                      <div className="text-xs text-gray-500 mt-1">
-                        Balance: {isLoadingBalance ? "Loading..." : `${walletBalance} SOL`}
+                      <div className="px-4 py-2 text-xs text-gray-500">
+                        Balance: {isLoadingBalance ? "Loading..." : `${walletBalance.toFixed(4)} SOL`}
                       </div>
                     )}
                   </div>
@@ -306,15 +355,7 @@ export default function NavBar({
               )}
             </div>
           )}
-          {/* Only show Join as creator if not signed in */}
-          {!user && !signingOut && (
-            <button
-              onClick={goToCreatorSignupPage}
-              className="px-4 py-2 bg-orange-500 text-white rounded-full hover:bg-orange-600 transition duration-300"
-            >
-              Join as creator
-            </button>
-          )}
+
         </div>
         <button
           className="md:hidden"
@@ -343,29 +384,11 @@ export default function NavBar({
                 size={18}
               />
             </div>
-            {!user && (
-              <button
-                onClick={handleSignIn}
-                className={`w-full px-4 py-2 bg-blue-500 text-white rounded-full hover:bg-blue-600 transition duration-300 text-center relative overflow-hidden ${signingIn ? 'opacity-80 cursor-not-allowed' : ''}`}
-                disabled={signingIn}
-              >
-                {signingIn ? (
-                  <span className="absolute inset-0 flex items-center justify-center">
-                    <span className="block w-5 h-5 rounded-full bg-gradient-to-r from-blue-400 via-blue-200 to-blue-400 animate-pulse" />
-                  </span>
-                ) : (
-                  'Sign In'
-                )}
-                {/* <span className={signingIn ? 'invisible' : ''}>Sign In</span> */}
-              </button>
-            )}
+
             {/* Mobile user/account section */}
-            {signingOut ? (
-              <div className="flex items-center w-full px-4 py-2 bg-gray-100 rounded-full animate-pulse min-h-[40px]">
-                <div className="w-8 h-8 rounded-full bg-gray-200 mr-2" />
-                <div className="h-4 w-24 bg-gray-200 rounded" />
-              </div>
-            ) : user && (
+            {!userContext.user ? (
+              <UserButton />
+            ) : (
               <div className="relative" ref={mobileDropdownRef}>
                 <button
                   onClick={() => setMobileDropdownOpen((open) => !open)}
@@ -373,7 +396,7 @@ export default function NavBar({
                 >
                   {/* Avatar */}
                   <img
-                    src={user.picture || "/default-avatar.png"}
+                    src={userContext.user.picture || "/default-avatar.png"}
                     alt="avatar"
                     className="w-8 h-8 rounded-full object-cover mr-2 border border-gray-300"
                     onError={(e) => {
@@ -382,7 +405,7 @@ export default function NavBar({
                     }}
                   />
                   <span className="mr-2">
-                    {user.email ? user.email : "Account"}
+                    {userContext.user.email ? userContext.user.email : "Account"}
                   </span>
                   {mobileDropdownOpen ? (
                     <ChevronUp size={18} />
@@ -395,7 +418,7 @@ export default function NavBar({
                     <div className="px-4 py-2 border-b border-gray-100">
                       <div className="flex items-center space-x-3 mb-2">
                         <img
-                          src={user.picture || "/default-avatar.png"}
+                          src={userContext.user.picture || "/default-avatar.png"}
                           alt="avatar"
                           className="w-10 h-10 rounded-full object-cover border border-gray-300"
                           onError={(e) => {
@@ -403,7 +426,7 @@ export default function NavBar({
                           }}
                         />
                         <div>
-                          <p className="font-medium text-gray-800">{user.email ? user.email : "Account"}</p>
+                          <p className="font-medium text-xs text-gray-800">{userContext.user.email ? userContext.user.email : "Account"}</p>
                           <p className="text-xs text-gray-500">Authenticated with Civic</p>
                         </div>
                       </div>
@@ -411,46 +434,63 @@ export default function NavBar({
                     {/* Wallet Section */}
                     <div className="px-4 py-2 border-b border-gray-100">
                       <div className="flex items-center justify-between text-sm mb-2">
+                        <span className="text-gray-500">Authentication</span>
+                        <span className="text-green-600 flex items-center">
+                          <Check className="h-3 w-3 mr-1" /> Verified
+                        </span>
+                      </div>
+
+                      <div className="flex items-center justify-between text-sm mb-2">
                         <span className="text-gray-500">Wallet</span>
                         {isCreatingWallet ? (
                           <span className="text-gray-400 text-xs">Creating...</span>
                         ) : walletAddress ? (
-                          <span className="text-green-600 flex items-center"><Check className="h-3 w-3 mr-1" /> Connected</span>
+                          <span className="text-green-600 flex items-center">
+                            <Check className="h-3 w-3 mr-1" /> Connected
+                          </span>
                         ) : (
                           <span className="text-gray-400 text-xs">Not connected</span>
                         )}
                       </div>
+
                       {walletAddress && (
                         <div className="bg-gray-50 p-2 rounded flex items-center justify-between">
                           <div className="flex items-center">
-                            <Wallet className="h-4 w-4 text-gray-700 mr-2" />
-                            <span className="text-xs font-mono text-gray-700" title={walletAddress}>
+                            <Wallet className="h-3 w-3 text-gray-700 mr-2" />
+                            <span
+                              className="text-xs font-mono text-gray-700"
+                              title={walletAddress}
+                            >
                               {minifyAddress(walletAddress)}
                             </span>
                           </div>
                           <div className="flex items-center space-x-1">
                             <a
-                              href={`https://explorer.solana.com/address/${walletAddress}`}
+                              href={`https://explorer.solana.com/address/${walletAddress}?cluster=devnet`}
                               target="_blank"
                               rel="noopener noreferrer"
-                              title="View on Solana Explorer"
-                              className="text-gray-400 hover:text-gray-700"
+                              title="View on Solana Explorer (Devnet)"
+                              className="text-gray-400 hover:text-gray-700 transition-colors"
                             >
-                              <ExternalLink className="h-4 w-4" />
+                              <ExternalLink className="h-3 w-3" />
                             </a>
                             <button
-                              className="ml-1 text-gray-400 hover:text-gray-700"
+                              className="text-gray-400 hover:text-gray-700"
                               onClick={copyToClipboard}
                               title="Copy wallet address"
                             >
-                              <Copy className={`h-4 w-4 ${isCopied ? "text-green-600" : ""}`} />
+                              <Copy
+                                className={`h-3 w-3 ${
+                                  isCopied ? "text-green-600" : ""
+                                }`}
+                              />
                             </button>
                           </div>
                         </div>
                       )}
                       {walletBalance !== null && (
-                        <div className="text-xs text-gray-500 mt-1">
-                          Balance: {isLoadingBalance ? "Loading..." : `${walletBalance} SOL`}
+                        <div className="px-4 py-2 text-xs text-gray-500">
+                          Balance: {isLoadingBalance ? "Loading..." : `${walletBalance.toFixed(4)} SOL`}
                         </div>
                       )}
                     </div>
@@ -464,15 +504,7 @@ export default function NavBar({
                 )}
               </div>
             )}
-            {/* Only show Join as creator if not signed in */}
-            {!user && !signingOut && (
-              <button
-                onClick={goToCreatorSignupPage}
-                className="w-full px-4 py-2 bg-orange-500 text-white rounded-full hover:bg-orange-600 transition duration-300"
-              >
-                Become a creator
-              </button>
-            )}
+
           </div>
         </div>
       )}

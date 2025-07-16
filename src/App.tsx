@@ -1,5 +1,5 @@
 import { Routes, Route, Navigate, BrowserRouter } from "react-router-dom";
-import { CivicAuthProvider } from "@civic/auth/react";
+import { CivicAuthProvider } from "@civic/auth-web3/react";
 import LandingPage from "./components/Landing";
 // import FindCreator from "./components/dashboard/creator/creator-page/FindCreator";
 // import CreatorProfile from "./components/customprofile/creator/CreatorProfile";
@@ -51,7 +51,7 @@ function App() {
 
 export default function AppWrapper() {
   return (
-    <CivicAuthProvider clientId="31686871-8773-496f-b065-22a6885df4b1">
+    <CivicAuthProvider clientId="8f0cd45d-3ee2-4b74-bd7d-cd5d564d787e">
       <BrowserRouter>
         <App />
       </BrowserRouter>

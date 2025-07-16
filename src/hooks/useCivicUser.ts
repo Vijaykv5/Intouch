@@ -1,4 +1,4 @@
-import { useUser as useCivicAuthUser } from "@civic/auth/react";
+import { useUser as useCivicAuthUser } from "@civic/auth-web3/react";
 
 export function useCivicUser() {
   const { user } = useCivicAuthUser();

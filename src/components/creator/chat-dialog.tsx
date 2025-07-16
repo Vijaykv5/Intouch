@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { X, Flag, AlertTriangle } from "lucide-react";
 import { supabase } from "../../utils/supabase";
-import { useUser } from "@civic/auth/react";
+import { useUser } from "@civic/auth-web3/react";
 import { toast } from "react-hot-toast";
 import { useNavigate } from "react-router-dom";
 
