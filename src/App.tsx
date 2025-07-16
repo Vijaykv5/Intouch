@@ -1,6 +1,5 @@
 import { Routes, Route, Navigate, BrowserRouter } from "react-router-dom";
 import { CivicAuthProvider } from "@civic/auth/react";
-// import DashBoardUser from "./components/dashboard/user/DashBoard";
 import LandingPage from "./components/Landing";
 // import FindCreator from "./components/dashboard/creator/creator-page/FindCreator";
 // import CreatorProfile from "./components/customprofile/creator/CreatorProfile";
@@ -9,6 +8,7 @@ import LandingPage from "./components/Landing";
 import { Toaster } from "react-hot-toast";
 import FindCreator from "./components/creator/FindCreator"
 import { useCivicUser } from "./hooks/useCivicUser";
+import DashBoardUser from "./components/user/DashBoard";
 // import CreatorDashboard from "./components/dashboard/creator/CreatorDashboard";
 
 function App() {
@@ -22,7 +22,13 @@ function App() {
       <Toaster position="top-right" />
       <Routes>
         <Route path="/" element={<LandingPage />} />
-        <Route path="/creators" element={isAuthenticated ? <FindCreator /> : <Navigate to="/" replace />} />
+        <Route
+          path="/creators"
+          element={
+            isAuthenticated ? <FindCreator /> : <Navigate to="/" replace />
+          }
+        />
+        <Route path="/dashboard" element={<DashBoardUser />} />
         {/* <Route path="/form" element={<DashBoardUser />} />
         <Route path="/dashboard" element={<DashBoardUser />} />
         <Route
