@@ -40,10 +40,6 @@ export default function NavBar({
   const [isLoadingBalance, setIsLoadingBalance] = useState(false);
   const [isCopied, setIsCopied] = useState(false);
 
-    console.log("Civic user context:", userContext);
-    console.log("userContext.solana:", userContext.solana);
-    console.log("userContext.solana?.address:", userContext.solana?.address);
-
   const handleSignOut = useCallback(() => {
     try {
       if (userContext.signOut) {
@@ -90,9 +86,7 @@ export default function NavBar({
         throw new Error("Invalid public key format");
       }
       
-      console.log('Fetching balance for:', solanaPublicKey.toString());
       const balance = await connection.getBalance(solanaPublicKey);
-      console.log('Balance fetched:', balance / LAMPORTS_PER_SOL, 'SOL');
       setWalletBalance(balance / LAMPORTS_PER_SOL);
     } catch (error) {
       console.error("Error fetching wallet balance:", error);
@@ -111,13 +105,9 @@ export default function NavBar({
           return;
         }
 
-        console.log('Civic user context:', userContext);
-        console.log('userContext.solana:', userContext.solana);
-
         // Check if user has a Solana wallet address
         if (userContext.solana?.address) {
           const walletAddress = userContext.solana.address;
-          console.log('Solana wallet address found:', walletAddress);
           
           setWalletAddress(walletAddress);
           await fetchWalletBalance(walletAddress);
@@ -125,12 +115,10 @@ export default function NavBar({
           // User doesn't have a wallet, try to create one
           try {
             setIsCreatingWallet(true);
-            console.log('Creating wallet...');
             await userContext.createWallet();
             
             // After wallet creation, check again
             const newWalletAddress = userContext.solana?.address;
-            console.log('New Solana wallet address:', newWalletAddress);
             
             if (newWalletAddress) {
               setWalletAddress(newWalletAddress);
@@ -159,7 +147,6 @@ export default function NavBar({
   React.useEffect(() => {
     if (userContext.user && userContext.solana?.address) {
       const walletAddress = userContext.solana.address;
-      console.log('Solana wallet changed, new address:', walletAddress);
       setWalletAddress(walletAddress);
       fetchWalletBalance(walletAddress);
     }
@@ -167,8 +154,6 @@ export default function NavBar({
 
 
 
-  // Close dropdown on outside click
-  // Desktop
   React.useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (
@@ -277,7 +262,7 @@ export default function NavBar({
                         }}
                       />
                       <div>
-                        <p className="font-bold text-gray-800">{userContext.user.email ? userContext.user.email : "Account"}</p>
+                        <p className="font-bold text-xs text-gray-800">{userContext.user.email ? userContext.user.email : "Account"}</p>
                         <p className="text-xs text-gray-500">Authenticated with Civic</p>
                       </div>
                     </div>
