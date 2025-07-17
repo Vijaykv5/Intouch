@@ -6,6 +6,7 @@ import { toast } from "react-hot-toast";
 import Sidebar from "./Sidebar";
 import CreatorList from "./CreatorList";
 import ChatArea from "./ChatArea";
+import TransactionHistory from "./TransactionHistory";
 
 interface Creator {
   id: string;
@@ -17,6 +18,7 @@ interface Creator {
   user_id: string;
   status?: "online" | "offline";
   profile_image?: string;
+  wallet_address?: string;
 }
 
 interface Message {
@@ -36,21 +38,23 @@ interface LocationState {
 //   creator_name: string;
 //   username: string;
 //   avatar_url: string;
-//   last_seen?: string;
-// }
-
-// interface Connection {
-//   creator_id: string;
-//   creator_profiles: CreatorProfile;
-// }
-
 const DashBoard: React.FC = () => {
+  const [activeSection, setActiveSection] = useState<string>("chat");
   const location = useLocation();
   const navigate = useNavigate();
   const { user } = useCivicUser();
   const [selectedCreator, setSelectedCreator] = useState<Creator | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState("");
+
+  // Handle persistent draft per creator
+  const handleNewMessageChange = (value: string) => {
+    setNewMessage(value);
+    if (user && selectedCreator) {
+      const draftKey = `chat_draft_${user.id}_${selectedCreator.id}`;
+      localStorage.setItem(draftKey, value);
+    }
+  };
   const [connectedCreators, setConnectedCreators] = useState<Creator[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [isLoading, setIsLoading] = useState(true);
@@ -58,16 +62,19 @@ const DashBoard: React.FC = () => {
   console.log("coonected creator:", user?.id);
   
 
+  // On mount, fetch connected creators and handle initial creator from location.state
   useEffect(() => {
-    console.log("useEffect running, user:", user);
     const state = location.state as LocationState;
     if (state?.creator) {
       setSelectedCreator(state.creator);
-      fetchMessages(state.creator.id);
+      // fetchMessages will be triggered by selectedCreator effect
     }
-
     fetchConnectedCreators();
+  }, [location, user]);
 
+  // Listen for new messages for the selected creator and load chat history/draft
+  useEffect(() => {
+    if (!selectedCreator || !user) return;
     const userMessagesChannel = supabase
       .channel("user_messages")
       .on(
@@ -78,10 +85,7 @@ const DashBoard: React.FC = () => {
           table: "user_messages",
         },
         (payload: any) => {
-          if (
-            selectedCreator &&
-            payload.new.creator_id === selectedCreator.id
-          ) {
+          if (payload.new.creator_id === selectedCreator.id) {
             const newMessage: Message = {
               id: payload.new.id,
               sender: "user",
@@ -104,10 +108,7 @@ const DashBoard: React.FC = () => {
           table: "creator_messages",
         },
         (payload: any) => {
-          if (
-            selectedCreator &&
-            payload.new.creator_id === selectedCreator.id
-          ) {
+          if (payload.new.creator_id === selectedCreator.id) {
             const newMessage: Message = {
               id: payload.new.id,
               sender: "creator",
@@ -120,11 +121,17 @@ const DashBoard: React.FC = () => {
       )
       .subscribe();
 
+    // Fetch messages from localStorage/backend for this creator
+    fetchMessages(selectedCreator.id);
+    // Load draft message for this creator
+    const draftKey = `chat_draft_${user.id}_${selectedCreator.id}`;
+    setNewMessage(localStorage.getItem(draftKey) || "");
+
     return () => {
       userMessagesChannel.unsubscribe();
       creatorMessagesChannel.unsubscribe();
     };
-  }, [location, selectedCreator, user]);
+  }, [selectedCreator, user]);
 
   const fetchConnectedCreators = async () => {
     console.log("fetchConnectedCreators called, user:", user);
@@ -202,6 +209,7 @@ const DashBoard: React.FC = () => {
         priority_dm_price: creator.priority_dm_price || 0,
         user_id: creator.id,
         status: isCreatorOnline(creator.last_seen) ? "online" : "offline",
+        wallet_address: creator.wallet_address || "",
       }));
 
       console.log("[fetchConnectedCreators] Mapped creators:", mappedCreators);
@@ -224,6 +232,18 @@ const DashBoard: React.FC = () => {
 
   const fetchMessages = async (creatorId: string) => {
     if (!user) return;
+
+    // Try to load from localStorage first
+    const localKey = `chat_history_${user.id}_${creatorId}`;
+    const localData = localStorage.getItem(localKey);
+    if (localData) {
+      try {
+        const parsed = JSON.parse(localData);
+        setMessages(parsed);
+      } catch (e) {
+        // ignore parse error
+      }
+    }
 
     // Fetch app user profile
     const { data: userProfile, error: userProfileError } = await supabase
@@ -291,6 +311,8 @@ const DashBoard: React.FC = () => {
       );
 
       setMessages(allMessages);
+      // Save to localStorage
+      localStorage.setItem(localKey, JSON.stringify(allMessages));
     } catch (error) {
       console.error("Error fetching messages:", error);
       toast.error("Failed to load messages");
@@ -333,7 +355,15 @@ const DashBoard: React.FC = () => {
         timestamp: new Date(data[0].created_at).toLocaleTimeString(),
       };
 
-      setMessages((prev) => [...prev, newMessageObj]);
+      setMessages((prev) => {
+        const updated = [...prev, newMessageObj];
+        // Persist to localStorage
+        if (user && selectedCreator) {
+          const localKey = `chat_history_${user.id}_${selectedCreator.id}`;
+          localStorage.setItem(localKey, JSON.stringify(updated));
+        }
+        return updated;
+      });
       setNewMessage("");
     } catch (error) {
       console.error("Error sending message:", error);
@@ -358,38 +388,40 @@ const DashBoard: React.FC = () => {
 
   return (
     <div className="flex h-screen bg-orange-50">
-      <Sidebar onSignOut={handleSignOut} />
-
-      <div className="flex-1 flex">
-        <CreatorList
-          creators={connectedCreators}
-          selectedCreator={selectedCreator}
-          searchQuery={searchQuery}
-          isLoading={isLoading}
-          onSearchChange={setSearchQuery}
-          onCreatorSelect={(creator) => {
-            const fullCreator: Creator = {
-              ...creator,
-              description: "",
-              about: "",
-              priority_dm_price: 0,
-              user_id: creator.id,
-            };
-            setSelectedCreator(fullCreator);
-            fetchMessages(creator.id);
-          }}
-        />
-
-        <ChatArea
-          selectedCreator={selectedCreator}
-          messages={messages}
-          newMessage={newMessage}
-          onMessageChange={setNewMessage}
-          onSendMessage={handleSendMessage}
-        />
-      </div>
+      <Sidebar 
+        onSignOut={handleSignOut}
+        onSectionSelect={setActiveSection}
+        activeSection={activeSection}
+      />
+      {activeSection === "chat" && (
+        <>
+          <CreatorList
+            creators={connectedCreators}
+            selectedCreator={selectedCreator}
+            searchQuery={searchQuery}
+            isLoading={isLoading}
+            onSearchChange={setSearchQuery}
+            onCreatorSelect={(creator) => {
+              setSelectedCreator(creator);
+              // fetchMessages will be triggered by selectedCreator effect
+            }}
+          />
+          <ChatArea
+            selectedCreator={selectedCreator}
+            messages={messages}
+            newMessage={newMessage}
+            onMessageChange={handleNewMessageChange}
+            onSendMessage={handleSendMessage}
+          />
+        </>
+      )}
+      {activeSection === "transactions" && (
+        <TransactionHistory connectedCreators={connectedCreators} />
+      )}
     </div>
   );
-};
+}
+
+
 
 export default DashBoard;

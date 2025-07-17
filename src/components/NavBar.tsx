@@ -1,14 +1,8 @@
 import React, { useState, useCallback, useRef } from "react";
-import {
-  Search,
-  Menu,
-  X,
-  ChevronDown,
-  ChevronUp,
-} from "lucide-react";
+import Shimmer from "./Shimmer";
+import { Search, Menu, X, ChevronDown, ChevronUp } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
-import { useUser, UserButton } from "@civic/auth-web3/react";
-import { userHasWallet } from "@civic/auth-web3";
+import { useUser } from "@civic/auth-web3/react";
 import { Copy, Wallet, ExternalLink, Check, LogOut } from "lucide-react";
 import { Connection, LAMPORTS_PER_SOL, PublicKey } from "@solana/web3.js";
 
@@ -16,6 +10,7 @@ interface NavBarProps {
   goToCreatorSignupPage: () => void;
 }
 
+// Declaring the global Civic Web3 object for better TypeScript recognition
 declare global {
   interface Window {
     civicWeb3?: {
@@ -24,13 +19,12 @@ declare global {
   }
 }
 
-export default function NavBar({
-  goToCreatorSignupPage,
-}: NavBarProps) {
+export default function NavBar({ goToCreatorSignupPage }: NavBarProps) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [mobileDropdownOpen, setMobileDropdownOpen] = useState(false);
   const userContext = useUser();
+  const { user } = userContext;
   const dropdownRef = useRef<HTMLDivElement>(null);
   const mobileDropdownRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
@@ -40,6 +34,10 @@ export default function NavBar({
   const [isLoadingBalance, setIsLoadingBalance] = useState(false);
   const [isCopied, setIsCopied] = useState(false);
 
+  /**
+   * Handles the user sign-out process.
+   * Clears user-related states like wallet address and balance.
+   */
   const handleSignOut = useCallback(() => {
     try {
       if (userContext.signOut) {
@@ -51,139 +49,152 @@ export default function NavBar({
       }
     } catch (error) {
       console.error("Failed to sign out:", error);
+      // Optionally, show a user-friendly error message
     }
   }, [userContext]);
 
+  /**
+   * Minifies a Solana wallet address for display.
+   * @param address The full wallet address.
+   * @returns A minified string like "ABCD...WXYZ" or an empty string if null.
+   */
   const minifyAddress = (address: string | null): string => {
     if (!address) return "";
     return `${address.slice(0, 4)}...${address.slice(-4)}`;
   };
 
+  /**
+   * Copies the wallet address to the clipboard.
+   * Provides visual feedback for a short period.
+   */
   const copyToClipboard = () => {
     if (walletAddress) {
       navigator.clipboard.writeText(walletAddress);
       setIsCopied(true);
-      setTimeout(() => setIsCopied(false), 2000);
+      setTimeout(() => setIsCopied(false), 2000); // Reset copied state after 2 seconds
     }
   };
 
-  const fetchWalletBalance = async (publicKey: any) => {
-    if (!publicKey) return;
+  /**
+   * Fetches the Solana balance for a given public key.
+   * @param publicKey The Solana public key (can be string or PublicKey object).
+   */
+  const fetchWalletBalance = async (
+    publicKey: string | PublicKey | undefined
+  ) => {
+    if (!publicKey) {
+      setWalletBalance(null); // Clear balance if no public key
+      return;
+    }
     try {
       setIsLoadingBalance(true);
-      const rpcEndpoint = "https://api.devnet.solana.com";
+      const rpcEndpoint = "https://api.devnet.solana.com"; // Consider making this configurable (e.g., via environment variables)
       const connection = new Connection(rpcEndpoint);
-      
-      let solanaPublicKey;
-      if (typeof publicKey === 'string') {
+
+      let solanaPublicKey: PublicKey;
+      if (typeof publicKey === "string") {
         solanaPublicKey = new PublicKey(publicKey);
-      } else if (publicKey.toBase58) {
+      } else if (publicKey instanceof PublicKey) {
+        // More robust check for PublicKey instance
         solanaPublicKey = publicKey;
-      } else if (publicKey.toString) {
-        solanaPublicKey = new PublicKey(publicKey.toString());
       } else {
-        console.error("Invalid public key format:", publicKey);
-        throw new Error("Invalid public key format");
+        console.error(
+          "Invalid public key format provided for balance fetch:",
+          publicKey
+        );
+        setWalletBalance(null); // Ensure balance is cleared on invalid format
+        return;
       }
-      
+
       const balance = await connection.getBalance(solanaPublicKey);
       setWalletBalance(balance / LAMPORTS_PER_SOL);
     } catch (error) {
       console.error("Error fetching wallet balance:", error);
-      setWalletBalance(null);
+      setWalletBalance(null); // Clear balance on error
     } finally {
       setIsLoadingBalance(false);
     }
   };
 
+  /**
+   * Effect to handle wallet initialization and balance fetching.
+   * Runs when the user context changes.
+   */
   React.useEffect(() => {
-    async function initializeWallet() {
-      try {
-        if (!userContext.user) {
-          setWalletAddress(null);
-          setWalletBalance(null);
-          return;
-        }
+    const initializeWallet = async () => {
+      // If no user, clear wallet states and exit
+      if (!user) {
+        setWalletAddress(null);
+        setWalletBalance(null);
+        return;
+      }
 
-        // Check if user has a Solana wallet address
-        if (userContext.solana?.address) {
-          const walletAddress = userContext.solana.address;
-          
-          setWalletAddress(walletAddress);
-          await fetchWalletBalance(walletAddress);
-        } else if (userContext.createWallet) {
-          // User doesn't have a wallet, try to create one
-          try {
-            setIsCreatingWallet(true);
-            await userContext.createWallet();
-            
-            // After wallet creation, check again
-            const newWalletAddress = userContext.solana?.address;
-            
-            if (newWalletAddress) {
-              setWalletAddress(newWalletAddress);
-              await fetchWalletBalance(newWalletAddress);
-            }
-          } catch (error) {
-            console.error("Failed to create wallet:", error);
-          } finally {
-            setIsCreatingWallet(false);
+      // Check if user already has a Solana address
+      if (userContext.solana?.address) {
+        const currentWalletAddress = userContext.solana.address;
+        setWalletAddress(currentWalletAddress);
+        await fetchWalletBalance(currentWalletAddress);
+      } else if (userContext.createWallet) {
+        // If no address but createWallet function is available, attempt to create
+        try {
+          setIsCreatingWallet(true);
+          await userContext.createWallet();
+          // After creation, check for the new address
+          const newWalletAddress = userContext.solana?.address;
+          if (newWalletAddress) {
+            setWalletAddress(newWalletAddress);
+            await fetchWalletBalance(newWalletAddress);
           }
-        } else {
-          setWalletAddress(null);
+        } catch (error) {
+          console.error("Failed to create wallet:", error);
+          setWalletAddress(null); // Clear address on creation failure
           setWalletBalance(null);
+        } finally {
+          setIsCreatingWallet(false);
         }
-      } catch (error) {
-        console.error("Error in wallet initialization:", error);
+      } else {
+        // No user, no existing wallet, and no createWallet function
         setWalletAddress(null);
         setWalletBalance(null);
       }
-    }
+    };
 
     initializeWallet();
-  }, [userContext]);
+  }, [userContext, fetchWalletBalance]); // Added fetchWalletBalance to dependency array for completeness, though it's useCallback'd
 
-  // Additional effect to handle wallet changes
+  /**
+   * Effect for closing dropdowns when clicking outside.
+   */
   React.useEffect(() => {
-    if (userContext.user && userContext.solana?.address) {
-      const walletAddress = userContext.solana.address;
-      setWalletAddress(walletAddress);
-      fetchWalletBalance(walletAddress);
-    }
-  }, [userContext.solana?.address]);
-
-
-
-  React.useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
+    const handleClickOutside = (event: MouseEvent) => {
       if (
         dropdownRef.current &&
         !dropdownRef.current.contains(event.target as Node)
       ) {
         setDropdownOpen(false);
       }
-    }
+    };
     if (dropdownOpen) {
       document.addEventListener("mousedown", handleClickOutside);
-    } else {
-      document.removeEventListener("mousedown", handleClickOutside);
     }
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [dropdownOpen]);
-  // Mobile
+
+  /**
+   * Effect for closing mobile dropdown when clicking outside.
+   * This is a separate effect for the mobile dropdown.
+   */
   React.useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
+    const handleClickOutside = (event: MouseEvent) => {
       if (
         mobileDropdownRef.current &&
         !mobileDropdownRef.current.contains(event.target as Node)
       ) {
         setMobileDropdownOpen(false);
       }
-    }
+    };
     if (mobileDropdownOpen) {
       document.addEventListener("mousedown", handleClickOutside);
-    } else {
-      document.removeEventListener("mousedown", handleClickOutside);
     }
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [mobileDropdownOpen]);
@@ -194,7 +205,7 @@ export default function NavBar({
         <div className="flex items-center space-x-4">
           <button
             className="text-2xl font-bold text-gray-800 focus:outline-none bg-transparent border-none cursor-pointer"
-            style={{ background: 'none', border: 'none', padding: 0 }}
+            style={{ background: "none", border: "none", padding: 0 }}
             onClick={() => navigate("/")}
             aria-label="Go to home page"
           >
@@ -202,12 +213,10 @@ export default function NavBar({
           </button>
         </div>
         <div className="hidden md:flex items-center space-x-4">
-          {/* <a
-            href="#"
-            className="text-gray-600 hover:text-gray-800 transition duration-300"
-          >
+          {/* Future link for creators can go here */}
+          {/* <Link to="/for-creators" className="text-gray-600 hover:text-gray-800 transition duration-300">
             For Creators
-          </a> */}
+          </Link> */}
         </div>
         <div className="hidden md:flex items-center space-x-4">
           <div className="relative">
@@ -215,6 +224,7 @@ export default function NavBar({
               type="text"
               placeholder="Find creators"
               className="pl-10 pr-4 py-2 border border-gray-300 rounded-full focus:outline-none focus:ring-2 focus:ring-orange-500"
+              aria-label="Find creators search input"
             />
             <Search
               className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"
@@ -223,30 +233,50 @@ export default function NavBar({
           </div>
 
           {/* Desktop user/account section */}
-          {!userContext.user ? (
-            <UserButton />
+          {typeof user === "undefined" ? (
+            <div className="flex items-center gap-2">
+              <Shimmer type="avatar" />
+              <Shimmer type="text" width="100px" height="16px" />
+            </div>
+          ) : !user ? (
+            <div className="flex items-center">
+              <button
+                onClick={() => userContext.signIn?.() || navigate("/signin")}
+                className="px-4 py-2 bg-orange-500 text-white rounded-full hover:bg-orange-600 transition duration-300 font-semibold shadow-sm focus:outline-none"
+              >
+                Sign In
+              </button>
+              <button
+                onClick={goToCreatorSignupPage}
+                className="px-4 py-2 bg-orange-500 text-white rounded-full hover:bg-orange-600 transition duration-300 font-semibold shadow-sm focus:outline-none ml-2"
+              >
+                Join as creator
+              </button>
+            </div>
           ) : (
             <div className="relative" ref={dropdownRef}>
               <button
                 onClick={() => setDropdownOpen((open) => !open)}
                 className="flex items-center px-4 py-2 bg-gray-100 text-gray-800 rounded-full hover:bg-gray-200 transition duration-300 focus:outline-none"
+                aria-expanded={dropdownOpen}
+                aria-haspopup="true"
               >
                 {/* Avatar */}
                 <img
-                  src={userContext.user.picture || "/default-avatar.png"}
-                  alt="avatar"
+                  src={user.picture || "/default-avatar.png"}
+                  alt={`${user.email || "User"}'s avatar`}
                   className="w-8 h-8 rounded-full object-cover mr-2 border border-gray-300"
                   onError={(e) => {
                     (e.target as HTMLImageElement).src = "/default-avatar.png";
                   }}
                 />
                 <span className="mr-2">
-                  {userContext.user.email ? userContext.user.email : "Account"}
+                  {user.email || "Account"}
                 </span>
                 {dropdownOpen ? (
-                  <ChevronUp size={18} />
+                  <ChevronUp size={18} aria-label="Collapse menu" />
                 ) : (
-                  <ChevronDown size={18} />
+                  <ChevronDown size={18} aria-label="Expand menu" />
                 )}
               </button>
               {dropdownOpen && (
@@ -254,16 +284,21 @@ export default function NavBar({
                   <div className="px-4 py-2 border-b border-gray-100">
                     <div className="flex items-center space-x-3 mb-2">
                       <img
-                        src={userContext.user.picture || "/default-avatar.png"}
-                        alt="avatar"
+                        src={user.picture || "/default-avatar.png"}
+                        alt={`${user.email || "User"}'s avatar`}
                         className="w-10 h-10 rounded-full object-cover border border-gray-300"
                         onError={(e) => {
-                          (e.target as HTMLImageElement).src = "/default-avatar.png";
+                          (e.target as HTMLImageElement).src =
+                            "/default-avatar.png";
                         }}
                       />
                       <div>
-                        <p className="font-bold text-xs text-gray-800">{userContext.user.email ? userContext.user.email : "Account"}</p>
-                        <p className="text-xs text-gray-500">Authenticated with Civic</p>
+                        <p className="font-bold text-xs text-gray-800">
+                          {user.email || "Account"}
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          Authenticated with Civic
+                        </p>
                       </div>
                     </div>
                   </div>
@@ -279,13 +314,17 @@ export default function NavBar({
                     <div className="flex items-center justify-between text-sm mb-2">
                       <span className="text-gray-500">Wallet</span>
                       {isCreatingWallet ? (
-                        <span className="text-gray-400 text-xs">Creating...</span>
+                        <span className="text-gray-400 text-xs">
+                          Creating...
+                        </span>
                       ) : walletAddress ? (
                         <span className="text-green-600 flex items-center">
                           <Check className="h-3 w-3 mr-1" /> Connected
                         </span>
                       ) : (
-                        <span className="text-gray-400 text-xs">Not connected</span>
+                        <span className="text-gray-400 text-xs">
+                          Not connected
+                        </span>
                       )}
                     </div>
 
@@ -326,7 +365,10 @@ export default function NavBar({
                     )}
                     {walletBalance !== null && (
                       <div className="px-4 py-2 text-xs text-gray-500">
-                        Balance: {isLoadingBalance ? "Loading..." : `${walletBalance.toFixed(4)} SOL`}
+                        Balance:{" "}
+                        {isLoadingBalance
+                          ? "Loading..."
+                          : `${walletBalance.toFixed(4)} SOL`}
                       </div>
                     )}
                   </div>
@@ -340,11 +382,12 @@ export default function NavBar({
               )}
             </div>
           )}
-
         </div>
         <button
           className="md:hidden"
           onClick={() => setIsMenuOpen(!isMenuOpen)}
+          aria-expanded={isMenuOpen}
+          aria-label={isMenuOpen ? "Close menu" : "Open menu"}
         >
           {isMenuOpen ? <X size={24} /> : <Menu size={24} />}
         </button>
@@ -352,17 +395,16 @@ export default function NavBar({
       {isMenuOpen && (
         <div className="md:hidden bg-white py-4 transition-colors duration-300">
           <div className="container mx-auto px-4 space-y-4">
-            {/* <a
-              href="#"
-              className="block text-gray-600 hover:text-gray-800 transition duration-300"
-            >
+            {/* Future link for creators can go here */}
+            {/* <Link to="/for-creators" className="block text-gray-600 hover:text-gray-800 transition duration-300">
               For Creators
-            </a> */}
+            </Link> */}
             <div className="relative">
               <input
                 type="text"
                 placeholder="Find experts"
                 className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-full focus:outline-none focus:ring-2 focus:ring-orange-500"
+                aria-label="Find experts search input"
               />
               <Search
                 className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"
@@ -371,8 +413,28 @@ export default function NavBar({
             </div>
 
             {/* Mobile user/account section */}
-            {!userContext.user ? (
-              <UserButton />
+            {typeof user === "undefined" ? (
+              <div className="flex flex-col gap-2">
+                <div className="flex items-center gap-2">
+                  <Shimmer type="avatar" />
+                  <Shimmer type="text" width="100px" height="16px" />
+                </div>
+              </div>
+            ) : !user ? (
+              <div className="flex flex-col gap-2">
+                <button
+                  onClick={() => userContext.signIn?.() || navigate("/signin")}
+                  className="px-4 py-2 bg-orange-500 text-white rounded-full hover:bg-orange-600 transition duration-300 font-semibold shadow-sm focus:outline-none"
+                >
+                  Sign In
+                </button>
+                <button
+                  onClick={goToCreatorSignupPage}
+                  className="px-4 py-2 bg-orange-500 text-white rounded-full hover:bg-orange-600 transition duration-300 font-semibold shadow-sm focus:outline-none mt-2 w-full"
+                >
+                  Join as creator
+                </button>
+              </div>
             ) : (
               <div className="relative" ref={mobileDropdownRef}>
                 <button
@@ -381,7 +443,7 @@ export default function NavBar({
                 >
                   {/* Avatar */}
                   <img
-                    src={userContext.user.picture || "/default-avatar.png"}
+                    src={user.picture || "/default-avatar.png"}
                     alt="avatar"
                     className="w-8 h-8 rounded-full object-cover mr-2 border border-gray-300"
                     onError={(e) => {
@@ -390,12 +452,14 @@ export default function NavBar({
                     }}
                   />
                   <span className="mr-2">
-                    {userContext.user.email ? userContext.user.email : "Account"}
+                    {user.email
+                      ? user.email
+                      : "Account"}
                   </span>
                   {mobileDropdownOpen ? (
-                    <ChevronUp size={18} />
+                    <ChevronUp size={18} aria-label="Collapse menu" />
                   ) : (
-                    <ChevronDown size={18} />
+                    <ChevronDown size={18} aria-label="Expand menu" />
                   )}
                 </button>
                 {mobileDropdownOpen && (
@@ -403,16 +467,23 @@ export default function NavBar({
                     <div className="px-4 py-2 border-b border-gray-100">
                       <div className="flex items-center space-x-3 mb-2">
                         <img
-                          src={userContext.user.picture || "/default-avatar.png"}
-                          alt="avatar"
+                          src={
+                            user.picture || "/default-avatar.png"
+                          }
+                          alt={`${user.email || "User"}'s avatar`}
                           className="w-10 h-10 rounded-full object-cover border border-gray-300"
                           onError={(e) => {
-                            (e.target as HTMLImageElement).src = "/default-avatar.png";
+                            (e.target as HTMLImageElement).src =
+                              "/default-avatar.png";
                           }}
                         />
                         <div>
-                          <p className="font-medium text-xs text-gray-800">{userContext.user.email ? userContext.user.email : "Account"}</p>
-                          <p className="text-xs text-gray-500">Authenticated with Civic</p>
+                          <p className="font-medium text-xs text-gray-800">
+                            {user.email || "Account"}
+                          </p>
+                          <p className="text-xs text-gray-500">
+                            Authenticated with Civic
+                          </p>
                         </div>
                       </div>
                     </div>
@@ -428,13 +499,17 @@ export default function NavBar({
                       <div className="flex items-center justify-between text-sm mb-2">
                         <span className="text-gray-500">Wallet</span>
                         {isCreatingWallet ? (
-                          <span className="text-gray-400 text-xs">Creating...</span>
+                          <span className="text-gray-400 text-xs">
+                            Creating...
+                          </span>
                         ) : walletAddress ? (
                           <span className="text-green-600 flex items-center">
                             <Check className="h-3 w-3 mr-1" /> Connected
                           </span>
                         ) : (
-                          <span className="text-gray-400 text-xs">Not connected</span>
+                          <span className="text-gray-400 text-xs">
+                            Not connected
+                          </span>
                         )}
                       </div>
 
@@ -475,7 +550,10 @@ export default function NavBar({
                       )}
                       {walletBalance !== null && (
                         <div className="px-4 py-2 text-xs text-gray-500">
-                          Balance: {isLoadingBalance ? "Loading..." : `${walletBalance.toFixed(4)} SOL`}
+                          Balance:{" "}
+                          {isLoadingBalance
+                            ? "Loading..."
+                            : `${walletBalance.toFixed(4)} SOL`}
                         </div>
                       )}
                     </div>
@@ -489,7 +567,6 @@ export default function NavBar({
                 )}
               </div>
             )}
-
           </div>
         </div>
       )}

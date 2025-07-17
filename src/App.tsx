@@ -1,5 +1,5 @@
 import { Routes, Route, Navigate, BrowserRouter } from "react-router-dom";
-import { CivicAuthProvider } from "@civic/auth-web3/react";
+import { CivicAuthProvider, useUser } from "@civic/auth-web3/react";
 import LandingPage from "./components/Landing";
 // import FindCreator from "./components/dashboard/creator/creator-page/FindCreator";
 // import CreatorProfile from "./components/customprofile/creator/CreatorProfile";
@@ -9,9 +9,12 @@ import { Toaster } from "react-hot-toast";
 import FindCreator from "./components/creator/FindCreator"
 import { useCivicUser } from "./hooks/useCivicUser";
 import DashBoardUser from "./components/user/DashBoard";
+import CreatorDashboard from "./components/creator/CreatorDashboard";
+
 // import CreatorDashboard from "./components/dashboard/creator/CreatorDashboard";
 
 function App() {
+  useUser(); // Ensures user context fetch starts immediately
   // Remove useCurrentUser, all auth is now via Civic
   const creatorProfile = localStorage.getItem("creator_profile");
   const hasCreatorProfile = !!creatorProfile;
@@ -29,21 +32,7 @@ function App() {
           }
         />
         <Route path="/dashboard" element={<DashBoardUser />} />
-        {/* <Route path="/form" element={<DashBoardUser />} />
-        <Route path="/dashboard" element={<DashBoardUser />} />
-        <Route
-          path="/creator-dashboard"
-          element={
-            hasCreatorProfile ? (
-              <CreatorDashboard />
-            ) : (
-              <Navigate to="/creator/signup" replace />
-            )
-          }
-        />
-        <Route path="/creator/signup" element={<CreatorProfile />} />
-        <Route path="/creator/:username" element={<PreviewPage />} />
-        <Route path="*" element={<NotFound />} /> */}
+        <Route path="/creator-dashboard" element={<CreatorDashboard />} />
       </Routes>
     </div>
   );

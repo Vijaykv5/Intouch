@@ -61,6 +61,14 @@ const ChatArea: React.FC<ChatAreaProps> = ({
           {selectedCreator.name}
         </h2>
       </div>
+      {/* DEBUG: Show message count and preview */}
+      <div className="bg-orange-100 text-orange-900 text-xs p-2 mb-2 rounded">
+        messages.length: {messages.length}
+        <br />
+        {messages.length > 0 && (
+          <pre style={{ maxHeight: 100, overflow: 'auto' }}>{JSON.stringify(messages, null, 2)}</pre>
+        )}
+      </div>
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
         {isLoading ? (
           <div className="flex justify-center items-center h-full">

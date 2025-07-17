@@ -1,12 +1,13 @@
 import React from "react";
 import { Search } from "lucide-react";
 
-interface Creator {
+export interface Creator {
   id: string;
   name: string;
   twitter_username?: string;
   profile_image?: string;
   status?: "online" | "offline";
+  wallet_address?: string;
 }
 
 interface CreatorListProps {
