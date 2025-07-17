@@ -1,9 +1,10 @@
 "use client";
 
 import { useState } from "react";
-// import { FaXTwitter } from "react-icons/fa6";
+import { X } from "lucide-react";
 import { supabase } from "../../utils/supabase";
 import { useNavigate } from "react-router-dom";
+import toast from "react-hot-toast";
 
 
 export default function ProfileUpdate() {
@@ -60,10 +61,7 @@ export default function ProfileUpdate() {
   const navigate = useNavigate();
 
   const [showAuthModal, setShowAuthModal] = useState(false);
-  const [authFormData, setAuthFormData] = useState({
-    username: "",
-    twitterHandle: "",
-  });
+  const [authUsername, setAuthUsername] = useState("");
   const [authError, setAuthError] = useState<string | null>(null);
   const [isAuthLoading, setIsAuthLoading] = useState(false);
 
@@ -272,8 +270,12 @@ export default function ProfileUpdate() {
       // Store the creator profile in localStorage
       // localStorage.setItem("creator_profile", JSON.stringify(dbResponse[0]));
 
-      // Navigate directly to creator dashboard
-      window.location.href = "/creator-dashboard";
+      // Show success toast and navigate
+      toast.success("Profile created successfully! Now login to the app.");
+      // Navigate to login page after a short delay
+      setTimeout(() => {
+        window.location.href = "/login";
+      }, 2000);
     } catch (err: any) {
       console.error("Error creating/updating profile:", err);
       setError(err.message || JSON.stringify(err) || "Failed to create/update profile");
@@ -288,8 +290,8 @@ export default function ProfileUpdate() {
     setAuthError(null);
 
     try {
-      if (!authFormData.username.trim() || !authFormData.twitterHandle.trim()) {
-        setAuthError("Please fill in all fields");
+      if (!authUsername.trim()) {
+        setAuthError("Please enter your username");
         return;
       }
 
@@ -297,7 +299,7 @@ export default function ProfileUpdate() {
       const { data: profile, error } = await supabase
         .from("creator_profiles")
         .select("*")
-        .eq("username", authFormData.username)
+        .eq("username", authUsername)
         .single();
 
       if (error) {
@@ -332,7 +334,13 @@ export default function ProfileUpdate() {
       {/* Auth Modal */}
       {showAuthModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-2xl p-8 max-w-md w-full mx-4">
+          <div className="bg-white rounded-2xl p-8 max-w-md w-full mx-4 relative">
+            <button 
+              onClick={() => setShowAuthModal(false)}
+              className="absolute top-4 right-4 text-gray-500 hover:text-gray-700"
+            >
+              <X className="w-5 h-5" />
+            </button>
             <h2 className="text-2xl font-bold text-gray-800 mb-4">
               Already a user?
             </h2>
@@ -353,32 +361,9 @@ export default function ProfileUpdate() {
                 </label>
                 <input
                   type="text"
-                  value={authFormData.username}
-                  onChange={(e) =>
-                    setAuthFormData((prev) => ({
-                      ...prev,
-                      username: e.target.value,
-                    }))
-                  }
+                  value={authUsername}
+                  onChange={(e) => setAuthUsername(e.target.value)}
                   placeholder="Enter your username"
-                  className="w-full outline-none text-gray-800 text-base border border-gray-200 rounded-lg p-2"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-600 mb-1">
-                  Twitter Handle *
-                </label>
-                <input
-                  type="text"
-                  value={authFormData.twitterHandle}
-                  onChange={(e) =>
-                    setAuthFormData((prev) => ({
-                      ...prev,
-                      twitterHandle: e.target.value,
-                    }))
-                  }
-                  placeholder="Enter your Twitter handle"
                   className="w-full outline-none text-gray-800 text-base border border-gray-200 rounded-lg p-2"
                 />
               </div>
@@ -473,7 +458,7 @@ export default function ProfileUpdate() {
               <div className="flex flex-col md:flex-row items-center gap-6">
                 <div className="flex-1 w-full">
                   <label className="block text-sm font-medium text-gray-600 mb-1">
-                    Add iProfile picture
+                    Add Profile picture
                   </label>
                   <label className="inline-block px-4 py-2 mt-2 bg-orange-500 text-white rounded-md cursor-pointer hover:bg-orange-600 transition-colors">
                     Choose file

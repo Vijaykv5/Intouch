@@ -74,63 +74,11 @@ export default function CreatorDashboard() {
       const profile = JSON.parse(storedProfile);
       setCreatorProfile(profile);
       fetchConnectedUsers(profile.id);
-
-      // Set up real-time subscriptions for both message types
-      const userMessagesChannel = supabase
-        .channel("user_messages")
-        .on(
-          "postgres_changes",
-          {
-            event: "*",
-            schema: "public",
-            table: "user_messages",
-          },
-          (payload: any) => {
-            if (selectedUser && payload.new.user_id === selectedUser.id) {
-              const newMessage: Message = {
-                id: payload.new.id,
-                content: payload.new.content,
-                created_at: payload.new.created_at,
-                sender_type: "user",
-              };
-              setMessages((prev) => [...prev, newMessage]);
-            }
-          }
-        )
-        .subscribe();
-
-      const creatorMessagesChannel = supabase
-        .channel("creator_messages")
-        .on(
-          "postgres_changes",
-          {
-            event: "*",
-            schema: "public",
-            table: "creator_messages",
-          },
-          (payload: any) => {
-            if (selectedUser && payload.new.user_id === selectedUser.id) {
-              const newMessage: Message = {
-                id: payload.new.id,
-                content: payload.new.content,
-                created_at: payload.new.created_at,
-                sender_type: "creator",
-              };
-              setMessages((prev) => [...prev, newMessage]);
-            }
-          }
-        )
-        .subscribe();
-
-      return () => {
-        userMessagesChannel.unsubscribe();
-        creatorMessagesChannel.unsubscribe();
-      };
     } catch (error) {
       console.error("Error parsing creator profile:", error);
       navigate("/creator/signup");
     }
-  }, [navigate, selectedUser]);
+  }, [navigate]);
 
   const fetchConnectedUsers = async (creatorId: string) => {
     try {
@@ -202,66 +150,27 @@ export default function CreatorDashboard() {
     if (!creatorProfile) return;
 
     try {
-      // console.log('Fetching messages for:', { userId, creatorId: creatorProfile.id });
-
-      // Get user messages
-      const { data: userMessages, error: userError } = await supabase
+      // Fetch user messages for the selected user only
+      const { data: userMessages, error } = await supabase
         .from("user_messages")
         .select("*")
-        .eq("user_id", userId)
         .eq("creator_id", creatorProfile.id)
+        .eq("user_id", userId)
         .order("created_at", { ascending: true });
 
-      if (userError) {
-        console.error("Error fetching user messages:", userError);
-        return;
-      }
+      if (error) throw error;
 
-      // Get creator messages
-      const { data: creatorMessages, error: creatorError } = await supabase
-        .from("creator_messages")
-        .select("*")
-        .eq("user_id", userId)
-        .eq("creator_id", creatorProfile.id)
-        .order("created_at", { ascending: true });
+      // Transform messages to match the expected format
+      const formattedMessages: Message[] = (userMessages || []).map(msg => ({
+        id: msg.id,
+        content: msg.content,
+        created_at: msg.created_at,
+        sender_type: "user" as const,
+      }));
 
-      if (creatorError) {
-        console.error("Error fetching creator messages:", creatorError);
-        return;
-      }
-
-      // Transform messages to include sender type
-      const formattedUserMessages: Message[] = (userMessages || []).map(
-        (msg) => ({
-          id: msg.id,
-          content: msg.content,
-          created_at: msg.created_at,
-          sender_type: "user",
-        })
-      );
-
-      const formattedCreatorMessages: Message[] = (creatorMessages || []).map(
-        (msg) => ({
-          id: msg.id,
-          content: msg.content,
-          created_at: msg.created_at,
-          sender_type: "creator",
-        })
-      );
-
-      // Combine and sort all messages by timestamp
-      const allMessages = [
-        ...formattedUserMessages,
-        ...formattedCreatorMessages,
-      ].sort(
-        (a, b) =>
-          new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
-      );
-
-      // console.log('Formatted messages:', allMessages);
-      setMessages(allMessages);
+      setMessages(formattedMessages);
     } catch (error) {
-      console.error("Error in fetchMessages:", error);
+      console.error("Error loading messages:", error);
       toast.error("Failed to load messages");
     }
   };
