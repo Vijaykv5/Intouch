@@ -18,7 +18,7 @@ export default function LandingPage() {
   // const { data: paidConnections } = usePaidConnections();
   // console.log("Paid connections:", paidConnections);
   const [expandedFaq, setExpandedFaq] = useState<number | null>(null);
-  const [activeCategory, setActiveCategory] = useState("Tech");
+  const [activeCategory, setActiveCategory] = useState("Career");
   const [activeFeature, setActiveFeature] = useState(0);
   const { isAuthenticated } = useCivicUser();
   const navigate = useNavigate();
@@ -35,15 +35,39 @@ export default function LandingPage() {
     navigate("/creator/signup");
   };
 
-  const categories = ["Tech", "Career", "Development", "IT", "Product"];
+  const categories = [ "Career", "Development", "IT", "Product"];
 
-  const creator = {
-    name: "Vijay Kv",
-    description:
-      "Connect work to Luna to learn about various technologies and explore the field of freelancing",
-    image:
-      "https://cdn.prod.website-files.com/643ed195cb374047b812e17a/645d20a728f43ef1461d1a31_young-guy-creating-video-1024x682.jpeg",
-  };
+  const creators = [
+    {
+      name: "Ankoor Warikoo",
+      category: "Career",
+      description:
+        "Career coach helping you crack your dream job and ace interviews. I help you to invest in your career and get the job you deserve.",
+      image: "https://i.ibb.co/5XCKLmVG/ankurwarikoo-banner-735x430-01.png",
+    },
+    {
+      name: "Smith Dev",
+      category: "Development",
+      description:
+        "Full-stack developer sharing coding tips and project-based learning.",
+      image:
+        "https://i.ibb.co/3mDnWK8r/youtube-individuals-63987cf377a71-sej.webp",
+    },
+    {
+      name: "Theo",
+      category: "IT",
+      description:
+        "IT consultant guiding you on certifications and cloud careers.",
+      image: "https://i.ibb.co/wNrwNx1F/1744339211977.jpg",
+    },
+    {
+      name: "Jonathan Smith",
+      category: "Product",
+      description:
+        "Founder of Civic, experiance in building and scaling tech products.",
+      image: "https://i.ibb.co/rK6jW66R/675a0761cdeafd7ebad06ba3-jon-smith.jpg",
+    },
+  ];
 
   useEffect(() => {
     document.documentElement.classList.remove("dark");
@@ -204,49 +228,65 @@ export default function LandingPage() {
                 </div>
               </div>
               <div className="mt-12 flex flex-col lg:flex-row items-start lg:items-center justify-between">
-                <div className="lg:w-1/2 mb-8 lg:mb-0">
-                  <motion.div
-                    initial={{ opacity: 0, scale: 0.95 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    transition={{ duration: 0.5 }}
-                    className="aspect-video rounded-lg overflow-hidden shadow-xl"
-                  >
-                    <img
-                      src={creator.image}
-                      alt={creator.name}
-                      className="w-full h-full object-cover"
-                    />
-                  </motion.div>
-                </div>
-                <div className="lg:w-1/2 lg:pl-12">
-                  <motion.h2
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.5, delay: 0.2 }}
-                    className="text-4xl md:text-5xl lg:text-6xl font-bold text-gray-900 mb-4"
-                  >
-                    {creator.name}
-                  </motion.h2>
-                  <motion.p
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.5, delay: 0.3 }}
-                    className="text-lg md:text-xl text-gray-600 mb-8"
-                  >
-                    {creator.description}
-                  </motion.p>
-                  <motion.button
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.5, delay: 0.4 }}
-                    className="px-8 py-3 bg-gray-900 text-white rounded-full text-lg font-medium hover:bg-gray-800 transition-colors"
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                  >
-                    Connect with him
-                  </motion.button>
-                </div>
-              </div>
+  {creators.filter(c => c.category === activeCategory).length > 0 ? (
+    (() => {
+      const creator = creators.find(c => c.category === activeCategory) || creators[0];
+      return <>
+        <div className="lg:w-1/2 mb-8 lg:mb-0">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.5 }}
+            className="aspect-video rounded-lg overflow-hidden shadow-xl"
+          >
+            <img
+              src={creator.image}
+              alt={creator.name}
+              className="w-full h-full object-cover"
+            />
+          </motion.div>
+        </div>
+        <div className="lg:w-1/2 lg:pl-12">
+          <motion.h2
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.2 }}
+            className="text-4xl md:text-5xl lg:text-6xl font-bold text-gray-900 mb-4"
+          >
+            {creator.name}
+          </motion.h2>
+          <motion.p
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.3 }}
+            className="text-lg md:text-xl text-gray-600 mb-8"
+          >
+            {creator.description}
+          </motion.p>
+          <motion.button
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.4 }}
+            className="px-8 py-3 bg-gray-900 text-white rounded-full text-lg font-medium hover:bg-gray-800 transition-colors"
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={() => {
+              if (!isAuthenticated) {
+                toast.error("You need to sign in to connect with creators! Please sign in to continue.", { position: "bottom-right" });
+                return;
+              }
+              navigate("/creators");
+            }}
+          >
+            Connect with {creator.name.split(' ')[0]}
+          </motion.button>
+        </div>
+      </>;
+    })()
+  ) : (
+    <div className="w-full text-center text-gray-500">No creators found for this category.</div>
+  )}
+</div>
             </div>
           </section>
         </section>

@@ -7,6 +7,26 @@ import { useNavigate } from "react-router-dom";
 
 
 export default function ProfileUpdate() {
+  // State for profile image preview
+  const [profileImagePreview, setProfileImagePreview] = useState<string | null>(null);
+  // State for selected file
+  const [profileImageFile, setProfileImageFile] = useState<File | null>(null);
+
+  // Handler for profile image upload
+  const handleProfileImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files && e.target.files[0];
+    if (file) {
+      setProfileImageFile(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setProfileImagePreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    } else {
+      setProfileImageFile(null);
+      setProfileImagePreview(null);
+    }
+  }
   const [formData, setFormData] = useState({
     fullName: "",
     bio: "",
@@ -105,19 +125,7 @@ export default function ProfileUpdate() {
     }
   };
 
-  const handleXConnect = () => {
-    if (formData.xConnected) {
-      setFormData((prev) => ({
-        ...prev,
-        xConnected: false,
-        xUsername: "",
-        xProfileImage: "",
-      }));
-      return;
-    }
-    // No X auth implemented, just set error or ignore
-    setError("X (Twitter) authentication is not available.");
-  };
+
 
   const validateForm = () => {
     const errors = {
@@ -179,58 +187,101 @@ export default function ProfileUpdate() {
       return;
     }
 
+    let xProfileImageUrl = "";
+    // 1. Upload image to Supabase Storage if selected
+    if (profileImageFile) {
+      try {
+        const fileExt = profileImageFile.name.split('.').pop();
+        const filePath = `profile-images/${formData.username}_${Date.now()}.${fileExt}`;
+        let { error: uploadError } = await supabase.storage
+          .from('profile-images')
+          .upload(filePath, profileImageFile);
+        if (uploadError) {
+          console.error(uploadError);
+          setError(uploadError.message || JSON.stringify(uploadError) || "Failed to upload profile image.");
+          setIsLoading(false);
+          return;
+        }
+        // Get public URL
+        const { data: publicUrlData } = supabase.storage
+          .from('profile-images')
+          .getPublicUrl(filePath);
+        xProfileImageUrl = publicUrlData?.publicUrl || "";
+      } catch (uploadErr: any) {
+        setError("Failed to upload profile image. Please try again.");
+        setIsLoading(false);
+        return;
+      }
+    }
+
     try {
       // Check if username already exists
       const { data: existingProfile, error: checkError } = await supabase
         .from("creator_profiles")
-        .select("username")
+        .select("*")
         .eq("username", formData.username)
-        .single();
+        .maybeSingle();
 
       if (checkError && checkError.code !== "PGRST116") {
         throw checkError;
       }
 
+      let dbError;
       if (existingProfile) {
-        setUsernameError("This username is already taken");
+        // Update existing row
+        ({ error: dbError } = await supabase
+          .from("creator_profiles")
+          .update({
+            creator_name: formData.fullName,
+            description: formData.bio,
+            price: formData.price,
+            category: formData.category,
+            wallet_address: formData.walletAddress,
+            x_profile_image: xProfileImageUrl,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("username", formData.username)
+          .select()
+        );
+      } else {
+        // Insert new row
+        ({ error: dbError } = await supabase
+          .from("creator_profiles")
+          .insert([
+            {
+              creator_name: formData.fullName,
+              username: formData.username,
+              description: formData.bio,
+              price: formData.price,
+              category: formData.category,
+              wallet_address: formData.walletAddress,
+              x_profile_image: xProfileImageUrl,
+              created_at: new Date().toISOString(),
+            },
+          ])
+          .select()
+        );
+      }
+
+      if (dbError) {
+        setError(dbError.message || "Failed to save profile");
         setIsLoading(false);
         return;
       }
 
-      const { data, error } = await supabase
-        .from("creator_profiles")
-        .insert([
-          {
-            creator_name: formData.fullName,
-            username: formData.username,
-            description: formData.bio,
-            price: formData.price,
-            x_connected: formData.xConnected,
-            x_username: formData.xUsername,
-            x_profile_image: formData.xProfileImage,
-            category: formData.category,
-            
-            created_at: new Date().toISOString(),
-          },
-        ])
-        .select();
-
-      if (error) {
-        throw error;
-      }
-
       // Store the creator profile in localStorage
-      localStorage.setItem("creator_profile", JSON.stringify(data[0]));
+      // localStorage.setItem("creator_profile", JSON.stringify(dbResponse[0]));
 
       // Navigate directly to creator dashboard
       window.location.href = "/creator-dashboard";
     } catch (err: any) {
-      console.error("Error creating profile:", err);
-      setError(err.message || "Failed to create profile");
+      console.error("Error creating/updating profile:", err);
+      setError(err.message || JSON.stringify(err) || "Failed to create/update profile");
     } finally {
       setIsLoading(false);
     }
   };
+
 
   const handleAuthSubmit = async () => {
     setIsAuthLoading(true);
@@ -417,46 +468,32 @@ export default function ProfileUpdate() {
           <div className="space-y-6">
             
 
-            {/* X Connection */}
+            {/* iProfile Picture Upload */}
             <div className="rounded-xl border border-gray-200 p-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  {/* <FaXTwitter className="text-black text-xl" /> */}
-                  <div>
-                    <span className="text-sm font-medium text-gray-600">
-                      Connect X Account
-                    </span>
-                    {formData.xConnected && formData.xUsername && (
-                      <div className="flex items-center gap-2">
-                        <p className="text-xs text-gray-500">
-                          Connected as @{formData.xUsername}
-                        </p>
-                        {formData.xProfileImage && (
-                          <img
-                            src={formData.xProfileImage}
-                            alt="X Profile"
-                            className="w-6 h-6 rounded-full"
-                          />
-                        )}
-                      </div>
-                    )}
-                  </div>
+              <div className="flex flex-col md:flex-row items-center gap-6">
+                <div className="flex-1 w-full">
+                  <label className="block text-sm font-medium text-gray-600 mb-1">
+                    Add iProfile picture
+                  </label>
+                  <label className="inline-block px-4 py-2 mt-2 bg-orange-500 text-white rounded-md cursor-pointer hover:bg-orange-600 transition-colors">
+                    Choose file
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleProfileImageChange}
+                      className="hidden"
+                    />
+                  </label>
                 </div>
-                <button
-                  onClick={handleXConnect}
-                  disabled={isLoading}
-                  className={`px-4 py-2 rounded-full font-medium transition-colors ${
-                    formData.xConnected
-                      ? "bg-green-100 text-green-700 hover:bg-green-200"
-                      : "bg-black text-white hover:bg-gray-800"
-                  } ${isLoading ? "opacity-50 cursor-not-allowed" : ""}`}
-                >
-                  {isLoading
-                    ? "Connecting..."
-                    : formData.xConnected
-                    ? "Connected"
-                    : "Connect"}
-                </button>
+                {profileImagePreview && (
+                  <div className="w-32 h-32 flex-shrink-0 rounded-md border border-gray-300 overflow-hidden flex items-center justify-center bg-gray-50">
+                    <img
+                      src={profileImagePreview}
+                      alt="Profile Preview"
+                      className="object-cover w-full h-full"
+                    />
+                  </div>
+                )}
               </div>
             </div>
 
@@ -593,6 +630,29 @@ export default function ProfileUpdate() {
                 <p className="text-red-500 text-sm mt-1">
                   {fieldErrors.price}
                 </p>
+              )}
+            </div>
+
+            {/* Wallet Address */}
+            <div className="rounded-xl border border-gray-200 p-4">
+              <label className="block text-sm font-medium text-gray-600 mb-1">
+                Wallet Address *
+              </label>
+              <input
+                type="text"
+                name="walletAddress"
+                value={formData.walletAddress}
+                onChange={handleInputChange}
+                placeholder="Enter your SOL wallet address"
+                className={`w-full outline-none text-gray-800 text-base ${
+                  fieldErrors.walletAddress ? "border-red-500" : ""
+                }`}
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                *please note this is the wallet for receiving the payment, ensure you put the correct SOL address
+              </p>
+              {fieldErrors.walletAddress && (
+                <p className="text-red-500 text-sm mt-1">{fieldErrors.walletAddress}</p>
               )}
             </div>
 
