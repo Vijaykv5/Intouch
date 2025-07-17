@@ -17,18 +17,21 @@ const Sidebar: React.FC<SidebarProps> = ({ onSignOut }) => {
         <div className="flex items-center space-x-3">
           <img
             src={
-              user.user_metadata?.avatar_url ||
+              user.picture ||
               "https://i.pravatar.cc/150?img=3"
             }
             alt="User"
             className="w-10 h-10 rounded-full border-2 border-orange-500"
+            onError={(e) => {
+              (e.target as HTMLImageElement).src = "https://i.pravatar.cc/150?img=3";
+            }}
           />
           <div>
             <h2 className="font-semibold text-orange-900">
-              {user.user_metadata?.full_name || "User"}
+              {user.email ? user.email.split("@")[0] : "User"}
             </h2>
             <p className="text-sm text-orange-600">
-              @{user.email?.split("@")[0]}
+              {user.email || "Authenticated with Civic"}
             </p>
           </div>
         </div>
