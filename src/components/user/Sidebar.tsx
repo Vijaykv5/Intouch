@@ -1,18 +1,27 @@
 import React from "react";
-import { MessageSquare, Users, Bell, Settings, LogOut } from "lucide-react";
+import { MessageSquare, Users, Bell, Settings, LogOut, List } from "lucide-react";
 import { useCivicUser } from "../../hooks/useCivicUser";
 
 interface SidebarProps {
   onSignOut: () => void;
+  onSectionSelect: (section: string) => void;
+  activeSection: string;
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ onSignOut }) => {
+const Sidebar: React.FC<SidebarProps> = ({ onSignOut, onSectionSelect, activeSection }) => {
   const { user } = useCivicUser();
 
   if (!user) return null;
 
+  const navItems = [
+    { label: "Messages", icon: MessageSquare, section: "chat" },
+    { label: "Creators", icon: Users, section: "creators" },
+    { label: "Transaction History", icon: List, section: "transactions" },
+    { label: "Settings", icon: Settings, section: "settings" },
+  ];
+
   return (
-    <div className="w-64 bg-[#fffdf4] shadow-lg">
+    <div className="w-64 bg-[#fffdf4] shadow-lg h-screen relative">
       <div className="p-4">
         <div className="flex items-center space-x-3">
           <img
@@ -39,22 +48,20 @@ const Sidebar: React.FC<SidebarProps> = ({ onSignOut }) => {
 
       <nav className="mt-6">
         <div className="px-4 space-y-2">
-          <button className="flex items-center w-full p-2 text-orange-900 rounded-lg hover:bg-orange-500 hover:text-white transition-colors">
-            <MessageSquare className="w-5 h-5 mr-3" />
-            Messages
-          </button>
-          <button className="flex items-center w-full p-2 text-orange-900 rounded-lg hover:bg-orange-500 hover:text-white transition-colors">
-            <Users className="w-5 h-5 mr-3" />
-            Creators
-          </button>
-          <button className="flex items-center w-full p-2 text-orange-900 rounded-lg hover:bg-orange-500 hover:text-white transition-colors">
-            <Bell className="w-5 h-5 mr-3" />
-            Notifications
-          </button>
-          <button className="flex items-center w-full p-2 text-orange-900 rounded-lg hover:bg-orange-500 hover:text-white transition-colors">
-            <Settings className="w-5 h-5 mr-3" />
-            Settings
-          </button>
+          {navItems.map(({ label, icon: Icon, section }) => (
+            <button
+              key={label}
+              className={`flex items-center w-full p-2 rounded-lg transition-colors ${
+                activeSection === section
+                  ? "bg-orange-500 text-white"
+                  : "text-orange-900 hover:bg-orange-500 hover:text-white"
+              }`}
+              onClick={() => onSectionSelect(section)}
+            >
+              <Icon className="w-5 h-5 mr-3" />
+              {label}
+            </button>
+          ))}
         </div>
       </nav>
 

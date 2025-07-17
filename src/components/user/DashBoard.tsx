@@ -55,7 +55,11 @@ const DashBoard: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [isLoading, setIsLoading] = useState(true);
 
+  console.log("coonected creator:", user?.id);
+  
+
   useEffect(() => {
+    console.log("useEffect running, user:", user);
     const state = location.state as LocationState;
     if (state?.creator) {
       setSelectedCreator(state.creator);
@@ -123,61 +127,89 @@ const DashBoard: React.FC = () => {
   }, [location, selectedCreator, user]);
 
   const fetchConnectedCreators = async () => {
+    console.log("fetchConnectedCreators called, user:", user);
     if (!user) return;
 
     try {
       setIsLoading(true);
 
+      // Step 1: Fetch user profile from user_profiles using email
+      const { data: userProfile, error: userProfileError } = await supabase
+        .from("user_profiles")
+        .select("*")
+        .eq("email", user.email)
+        .single();
+
+      if (userProfileError || !userProfile) {
+        console.error("User profile not found for:", user.email);
+        setConnectedCreators([]);
+        return;
+      }
+      const appUserId = userProfile.id;
+      console.log("[fetchConnectedCreators] App user id:", appUserId);
+
+      // Step 2: Fetch connections using app user id
       const { data: connections, error: connectionsError } = await supabase
         .from("paid_connections")
         .select("creator_id")
-        .eq("user_id", user.id);
+        .eq("user_id", appUserId);
 
+      console.log("[fetchConnectedCreators] Connections fetched:", connections);
       if (connectionsError) {
-        console.error("Error fetching connections:", connectionsError);
+        console.error("[fetchConnectedCreators] Error fetching connections:", connectionsError);
         toast.error("Failed to load connected creators");
+        setConnectedCreators([]);
         return;
       }
 
       if (!connections || connections.length === 0) {
+        console.warn("[fetchConnectedCreators] No connections found for user:", appUserId);
         setConnectedCreators([]);
         return;
       }
 
       const creatorIds = connections.map((conn) => conn.creator_id);
+      console.log("[fetchConnectedCreators] Creator IDs:", creatorIds);
 
+      // Step 3: Fetch creator profiles
       const { data: creators, error: creatorsError } = await supabase
         .from("creator_profiles")
         .select("*")
         .in("id", creatorIds);
 
+      console.log("[fetchConnectedCreators] Creators fetched:", creators);
       if (creatorsError) {
-        console.error("Error fetching creator details:", creatorsError);
+        console.error("[fetchConnectedCreators] Error fetching creator details:", creatorsError);
         toast.error("Failed to load creator details");
-        return;
-      }
-
-      if (!creators) {
         setConnectedCreators([]);
         return;
       }
 
+      if (!creators || creators.length === 0) {
+        console.warn("[fetchConnectedCreators] No creators found for IDs:", creatorIds);
+        setConnectedCreators([]);
+        return;
+      }
+
+      // Step 4: Map to Creator type
       const mappedCreators: Creator[] = creators.map((creator) => ({
         id: creator.id,
-        name: creator.creator_name,
-        description: "",
-        about: "",
-        twitter_username: creator.username,
-        profile_image: creator.x_profile_image,
-        priority_dm_price: 0,
+        name: creator.creator_name || "Unknown",
+        description: creator.description || "",
+        about: creator.about || "",
+        twitter_username: creator.username || "",
+        profile_image: creator.x_profile_image || "",
+        priority_dm_price: creator.priority_dm_price || 0,
         user_id: creator.id,
         status: isCreatorOnline(creator.last_seen) ? "online" : "offline",
       }));
 
+      console.log("[fetchConnectedCreators] Mapped creators:", mappedCreators);
       setConnectedCreators(mappedCreators);
     } catch (error) {
-      console.error("Error fetching connected creators:", error);
+      console.error("[fetchConnectedCreators] Error fetching connected creators:", error);
       toast.error("Failed to load connected creators");
+      setConnectedCreators([]);
     } finally {
       setIsLoading(false);
     }
@@ -193,12 +225,26 @@ const DashBoard: React.FC = () => {
   const fetchMessages = async (creatorId: string) => {
     if (!user) return;
 
+    // Fetch app user profile
+    const { data: userProfile, error: userProfileError } = await supabase
+      .from("user_profiles")
+      .select("*")
+      .eq("email", user.email)
+      .single();
+
+    if (userProfileError || !userProfile) {
+      console.error("User profile not found for:", user.email);
+      setMessages([]);
+      return;
+    }
+    const appUserId = userProfile.id;
+
     try {
       // Fetch user messages
       const { data: userMessages, error: userError } = await supabase
         .from("user_messages")
         .select("*")
-        .eq("user_id", user.id)
+        .eq("user_id", appUserId)
         .eq("creator_id", creatorId)
         .order("created_at", { ascending: true });
 
@@ -211,7 +257,7 @@ const DashBoard: React.FC = () => {
       const { data: creatorMessages, error: creatorError } = await supabase
         .from("creator_messages")
         .select("*")
-        .eq("user_id", user.id)
+        .eq("user_id", appUserId)
         .eq("creator_id", creatorId)
         .order("created_at", { ascending: true });
 
