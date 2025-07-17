@@ -10,6 +10,7 @@ import FindCreator from "./components/creator/FindCreator"
 import { useCivicUser } from "./hooks/useCivicUser";
 import DashBoardUser from "./components/user/DashBoard";
 import CreatorDashboard from "./components/creator/CreatorDashboard";
+import CreatorSignup from "./components/creator/CreatorSignup";
 
 // import CreatorDashboard from "./components/dashboard/creator/CreatorDashboard";
 
@@ -33,6 +34,7 @@ function App() {
         />
         <Route path="/dashboard" element={<DashBoardUser />} />
         <Route path="/creator-dashboard" element={<CreatorDashboard />} />
+        <Route path="/creator/signup" element={<CreatorSignup />} />
       </Routes>
     </div>
   );

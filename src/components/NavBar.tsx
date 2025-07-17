@@ -2,7 +2,7 @@ import React, { useState, useCallback, useRef } from "react";
 import Shimmer from "./Shimmer";
 import { Search, Menu, X, ChevronDown, ChevronUp } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
-import { useUser } from "@civic/auth-web3/react";
+import { useUser, UserButton } from "@civic/auth-web3/react";
 import { Copy, Wallet, ExternalLink, Check, LogOut } from "lucide-react";
 import { Connection, LAMPORTS_PER_SOL, PublicKey } from "@solana/web3.js";
 
@@ -240,12 +240,7 @@ export default function NavBar({ goToCreatorSignupPage }: NavBarProps) {
             </div>
           ) : !user ? (
             <div className="flex items-center">
-              <button
-                onClick={() => userContext.signIn?.() || navigate("/signin")}
-                className="px-4 py-2 bg-orange-500 text-white rounded-full hover:bg-orange-600 transition duration-300 font-semibold shadow-sm focus:outline-none"
-              >
-                Sign In
-              </button>
+              <UserButton />
               <button
                 onClick={goToCreatorSignupPage}
                 className="px-4 py-2 bg-orange-500 text-white rounded-full hover:bg-orange-600 transition duration-300 font-semibold shadow-sm focus:outline-none ml-2"
@@ -422,12 +417,7 @@ export default function NavBar({ goToCreatorSignupPage }: NavBarProps) {
               </div>
             ) : !user ? (
               <div className="flex flex-col gap-2">
-                <button
-                  onClick={() => userContext.signIn?.() || navigate("/signin")}
-                  className="px-4 py-2 bg-orange-500 text-white rounded-full hover:bg-orange-600 transition duration-300 font-semibold shadow-sm focus:outline-none"
-                >
-                  Sign In
-                </button>
+                <UserButton />
                 <button
                   onClick={goToCreatorSignupPage}
                   className="px-4 py-2 bg-orange-500 text-white rounded-full hover:bg-orange-600 transition duration-300 font-semibold shadow-sm focus:outline-none mt-2 w-full"
