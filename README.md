@@ -1,69 +1,108 @@
-# React + TypeScript + Vite
+# Intouch - Connect with Your Favorite Creators
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
 
-Currently, two official plugins are available:
+Intouch is a platform that bridges the gap between creators and their audience through direct messaging and secure payments. Built with modern web technologies, Intouch provides a seamless experience for users to connect with their favorite content creators.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+## 🌟 Features
 
-## Expanding the ESLint configuration
+- **Direct Messaging**: Real-time chat between creators and their audience
+- **Secure Payments**: Embedded Civic Web3 Wallet (Solana) for seamless transactions
+- **Creator Profiles**: Beautiful, customizable profiles for content creators
+- **Priority Messaging**: Pay for priority access to your favorite creators
+- **Transaction History**: Keep track of all your interactions and payments
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
 
-```js
-export default tseslint.config([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+## Architecture Diagram
 
-      // Remove tseslint.configs.recommended and replace with this
-      ...tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      ...tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      ...tseslint.configs.stylisticTypeChecked,
+![Architecture Diagram](image/architecture.png)
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+
+## 🏗️ Tech Stack
+
+- **Frontend**: React 19, TypeScript, Vite
+- **UI/UX**: Tailwind CSS, Framer Motion
+- **Authentication**: Civic Web3
+- **Blockchain**: Embedded Civic Web3 Wallet (Solana)
+- **Database**: Supabase (PostgreSQL)
+- **Routing**: React Router
+- **Form Handling**: React Hook Form
+- **Notifications**: React Hot Toast
+
+## 🚀 Getting Started
+
+### Prerequisites
+
+- Node.js (v18 or later)
+- npm or yarn
+- Solana CLI (optional, for development)
+
+### Installation
+
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/your-username/intouch.git
+   cd intouch
+   ```
+
+2. Install dependencies:
+   ```bash
+   npm install
+   # or
+   yarn
+   ```
+
+3. Create a `.env` file in the root directory and add your environment variables:
+   ```env
+   VITE_SUPABASE_URL=your_supabase_url
+   VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
+   VITE_CIVIC_CLIENT_ID=your_civic_client_id
+   ```
+
+4. Start the development server:
+   ```bash
+   npm run dev
+   # or
+   yarn dev
+   ```
+
+5. Open [http://localhost:5173](http://localhost:5173) in your browser.
+
+## 🏗️ Project Structure
+
+```
+src/
+├── components/           # Reusable UI components
+│   ├── creator/         # Creator-specific components
+│   └── user/            # User-facing components
+├── hooks/               # Custom React hooks
+├── store/               # State management
+├── utils/               # Utility functions
+├── App.tsx              # Main application component
+└── main.tsx             # Application entry point
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+## 🤝 Contributing
 
-export default tseslint.config([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+Contributions are welcome! Please follow these steps:
+
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
+4. Push to the branch (`git push origin feature/AmazingFeature`)
+5. Open a Pull Request
+
+## 📄 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## 🙏 Acknowledgments
+
+- [Vite](https://vitejs.dev/) for the amazing build tooling
+- [Tailwind CSS](https://tailwindcss.com/) for utility-first CSS
+- [Civic Web3](https://civic.com/) for the wallet integration
+- [Solana](https://solana.com/) for the blockchain infrastructure
+- [Supabase](https://supabase.com/) for the backend services
+
+
+We're still in the building phase, so some features might not work as expected or may cause a little trouble—thanks for bearing with us! 😊

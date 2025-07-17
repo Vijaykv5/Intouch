@@ -43,7 +43,7 @@ function App() {
 
 export default function AppWrapper() {
   return (
-    <CivicAuthProvider clientId="8f0cd45d-3ee2-4b74-bd7d-cd5d564d787e">
+    <CivicAuthProvider clientId={import.meta.env.VITE_CIVIC_CLIENT_ID}>
       <BrowserRouter>
         <App />
       </BrowserRouter>
