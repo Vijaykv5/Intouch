@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Youtube, Instagram, Mail, Bookmark, X, Loader2 } from "lucide-react";
+import { X, Loader2 } from "lucide-react";
 import { useUser } from "@civic/auth-web3/react";
 import { Connection, LAMPORTS_PER_SOL, PublicKey, Transaction, SystemProgram } from "@solana/web3.js";
 import toast from "react-hot-toast";
@@ -17,19 +17,19 @@ const getWalletFromCivic = (userContext: any) => {
   return (userContext as any).solana?.wallet;
 };
 
-interface CreatorProfile {
-  id: string;
-  creator_name: string;
-  username: string;
-  description: string;
-  price: string;
-  x_connected: boolean;
-  x_username: string;
-  x_profile_image: string | null;
-  category: string;
-  created_at: string;
-  wallet_address: string;
-}
+// interface CreatorProfile {
+//   id: string;
+//   creator_name: string;
+//   username: string;
+//   description: string;
+//   price: string;
+//   x_connected: boolean;
+//   x_username: string;
+//   x_profile_image: string | null;
+//   category: string;
+//   created_at: string;
+//   wallet_address: string;
+// }
 
 export const CreatorDetailsSidebar: React.FC<any> = ({
   creator,
@@ -38,7 +38,7 @@ export const CreatorDetailsSidebar: React.FC<any> = ({
   onSendMessage,
 }) => {
   const userContext = useUser();
-  const { userProfile, isLoading: profileLoading, updateWalletAddress } = useCivicUser();
+  const { userProfile, isLoading: profileLoading } = useCivicUser();
   const [isProcessing, setIsProcessing] = useState(false);
   const [transactionSignature, setTransactionSignature] = useState<string | null>(null);
   const [walletConnected, setWalletConnected] = useState(false);

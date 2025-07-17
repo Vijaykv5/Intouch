@@ -4,22 +4,12 @@ import { useCivicUser } from "../../hooks/useCivicUser";
 import { supabase } from "../../utils/supabase";
 import { toast } from "react-hot-toast";
 import Sidebar from "./Sidebar";
-import CreatorList from "./CreatorList";
+import CreatorList, { type Creator } from "./CreatorList";
+import ConnectedCreatorsList from "./ConnectedCreatorsList";
 import ChatArea from "./ChatArea";
 import TransactionHistory from "./TransactionHistory";
 
-interface Creator {
-  id: string;
-  name: string;
-  description: string;
-  about: string;
-  twitter_username?: string;
-  priority_dm_price: number;
-  user_id: string;
-  status?: "online" | "offline";
-  profile_image?: string;
-  wallet_address?: string;
-}
+
 
 interface Message {
   id: string;
@@ -44,6 +34,11 @@ const DashBoard: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useCivicUser();
   const [selectedCreator, setSelectedCreator] = useState<Creator | null>(null);
+
+  // Handler for selecting a creator from the list
+  const handleCreatorSelect = (creator: Creator) => {
+    setSelectedCreator(creator);
+  };
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState("");
 
@@ -387,41 +382,43 @@ const DashBoard: React.FC = () => {
   }
 
   return (
-    <div className="flex h-screen bg-orange-50">
-      <Sidebar 
+    <div className="flex h-screen bg-[#fffdf4]">
+      <Sidebar
         onSignOut={handleSignOut}
         onSectionSelect={setActiveSection}
         activeSection={activeSection}
       />
-      {activeSection === "chat" && (
-        <>
-          <CreatorList
-            creators={connectedCreators}
-            selectedCreator={selectedCreator}
-            searchQuery={searchQuery}
-            isLoading={isLoading}
-            onSearchChange={setSearchQuery}
-            onCreatorSelect={(creator) => {
-              setSelectedCreator(creator);
-              // fetchMessages will be triggered by selectedCreator effect
-            }}
-          />
-          <ChatArea
-            selectedCreator={selectedCreator}
-            messages={messages}
-            newMessage={newMessage}
-            onMessageChange={handleNewMessageChange}
-            onSendMessage={handleSendMessage}
-          />
-        </>
-      )}
-      {activeSection === "transactions" && (
-        <TransactionHistory connectedCreators={connectedCreators} />
-      )}
+      <main className="flex-1 overflow-y-auto">
+        {activeSection === "chat" && (
+          <div className="flex h-full">
+            <CreatorList
+              creators={connectedCreators}
+              selectedCreator={selectedCreator}
+              searchQuery={searchQuery}
+              isLoading={isLoading}
+              onSearchChange={setSearchQuery}
+              onCreatorSelect={handleCreatorSelect}
+            />
+            <ChatArea
+              selectedCreator={selectedCreator}
+              messages={messages}
+              newMessage={newMessage}
+              onMessageChange={handleNewMessageChange}
+              onSendMessage={handleSendMessage}
+            />
+          </div>
+        )}
+        {activeSection === "creators" && (
+          <ConnectedCreatorsList connectedCreators={connectedCreators} />
+        )}
+        {activeSection === "transactions" && (
+          <TransactionHistory connectedCreators={connectedCreators} />
+        )}
+        {/* Settings section can be added here */}
+      </main>
     </div>
   );
 }
-
 
 
 export default DashBoard;

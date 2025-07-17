@@ -8,7 +8,7 @@ import {
   DollarSign,
   Zap,
 } from "lucide-react";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import NavBar from "./NavBar"
 import { useCivicUser } from "../hooks/useCivicUser";
 import toast from "react-hot-toast";

@@ -8,6 +8,7 @@ export interface Creator {
   profile_image?: string;
   status?: "online" | "offline";
   wallet_address?: string;
+  description?: string;
 }
 
 interface CreatorListProps {

@@ -1,5 +1,5 @@
 import React from "react";
-import { MessageSquare, Users, Bell, Settings, LogOut, List } from "lucide-react";
+import { MessageSquare, Users, Settings, LogOut, List } from "lucide-react";
 import { useCivicUser } from "../../hooks/useCivicUser";
 
 interface SidebarProps {

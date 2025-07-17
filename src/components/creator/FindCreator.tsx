@@ -12,7 +12,7 @@ import { CreatorDetailsSidebar } from "./CreatorDetailsSidebar";
 import "./styles.css";
 import { supabase } from "../../utils/supabase";
 import Header from "../NavBar";
-import { useCivicUser } from "../../hooks/useCivicUser";
+
 
 interface CreatorProfile {
   id: string;
@@ -29,7 +29,7 @@ interface CreatorProfile {
 }
 
 export default function Component() {
-  const { user, isAuthenticated } = useCivicUser();
+  
   const [loading, setLoading] = useState(true);
   const [showChatDialog, setShowChatDialog] = useState(false);
   const [selectedCreator, setSelectedCreator] = useState<CreatorProfile | null>(
@@ -94,7 +94,7 @@ export default function Component() {
 
   return (
     <div className="min-h-screen bg-[#fffdf4]">
-      <Header user={user} />
+      <Header goToCreatorSignupPage={() => {}} />
       <div className="container mx-auto py-8">
         <div className="flex justify-between items-center mb-8">
           <h1 className="text-4xl md:text-6xl font-bold text-center w-full">

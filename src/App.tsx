@@ -17,8 +17,7 @@ import CreatorSignup from "./components/creator/CreatorSignup";
 function App() {
   useUser(); // Ensures user context fetch starts immediately
   // Remove useCurrentUser, all auth is now via Civic
-  const creatorProfile = localStorage.getItem("creator_profile");
-  const hasCreatorProfile = !!creatorProfile;
+  // const creatorProfile = localStorage.getItem("creator_profile");
   const { isAuthenticated } = useCivicUser();
 
   return (

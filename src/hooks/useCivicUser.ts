@@ -12,18 +12,18 @@ interface UserProfile {
   created_at: string;
 }
 
-interface CivicUser {
-  id: string;
-  email: string;
-  name?: string;
-  picture?: string;
-  wallet_address?: string;
-}
+// interface CivicUser {
+//   id: string;
+//   email: string;
+//   name?: string;
+//   picture?: string;
+//   wallet_address?: string;
+// }
 
 export function useCivicUser() {
-  const { user, solana } = useCivicAuthUser();
+  const { user, } = useCivicAuthUser();
   console.log("user-",user)
-  console.log("solana-",solana)
+  // console.log("solana-",solana)
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -108,37 +108,37 @@ export function useCivicUser() {
   }, [user]);
 
   // Effect to update wallet address when it becomes available from Civic context
-  useEffect(() => {
-    const updateWalletAddressFromContext = async () => {
-      if (!userProfile || !solana?.address) return;
+  // useEffect(() => {
+  //   const updateWalletAddressFromContext = async () => {
+  //     if (!userProfile || !solana?.address) return;
 
-      // Only update if the wallet address is different from what's stored
-      if (userProfile.wallet_address !== solana.address) {
-        try {
-          const { data: updatedProfile, error } = await supabase
-            .from("user_profiles")
-            .update({
-              wallet_address: solana.address,
-            })
-            .eq("id", userProfile.id)
-            .select()
-            .single();
+  //     // Only update if the wallet address is different from what's stored
+  //     if (userProfile.wallet_address !== solana.address) {
+  //       try {
+  //         const { data: updatedProfile, error } = await supabase
+  //           .from("user_profiles")
+  //           .update({
+  //             wallet_address: solana.address,
+  //           })
+  //           .eq("id", userProfile.id)
+  //           .select()
+  //           .single();
 
-          if (error) {
-            console.error("Error updating wallet address from context:", error);
-            return;
-          }
+  //         if (error) {
+  //           console.error("Error updating wallet address from context:", error);
+  //           return;
+  //         }
 
-          setUserProfile(updatedProfile);
-          console.log("Wallet address updated from Civic context:", solana.address);
-        } catch (error) {
-          console.error("Error in updateWalletAddressFromContext:", error);
-        }
-      }
-    };
+  //         setUserProfile(updatedProfile);
+  //         console.log("Wallet address updated from Civic context:", solana.address);
+  //       } catch (error) {
+  //         console.error("Error in updateWalletAddressFromContext:", error);
+  //       }
+  //     }
+  //   };
 
-    updateWalletAddressFromContext();
-  }, [userProfile, solana?.address]);
+  //   updateWalletAddressFromContext();
+  // }, [userProfile, solana?.address]);
 
   // Function to update user profile with additional data
   const updateUserProfile = async (updates: Partial<UserProfile>) => {

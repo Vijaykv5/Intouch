@@ -1,10 +1,30 @@
 import React, { useState, useCallback, useRef } from "react";
 import Shimmer from "./Shimmer";
 import { Search, Menu, X, ChevronDown, ChevronUp } from "lucide-react";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { useUser, UserButton } from "@civic/auth-web3/react";
-import { Copy, Wallet, ExternalLink, Check, LogOut } from "lucide-react";
+import { Copy, Wallet as WalletIcon, ExternalLink, Check, LogOut } from "lucide-react";
 import { Connection, LAMPORTS_PER_SOL, PublicKey } from "@solana/web3.js";
+
+// --- Web3 User Context Types and Type Guard ---
+import type { WalletAdapter } from "@solana/wallet-adapter-base";
+
+type UserContext = ReturnType<typeof useUser>;
+
+
+function userHasWallet(
+  ctx: UserContext
+): ctx is UserContext & { solana: { address: string; wallet: WalletAdapter } } {
+  return (
+    typeof ctx === "object" &&
+    ctx !== null &&
+    typeof (ctx as any).solana === "object" &&
+    (ctx as any).solana !== null &&
+    typeof (ctx as any).solana.address === "string" &&
+    typeof (ctx as any).solana.wallet === "object" &&
+    (ctx as any).solana.wallet !== null
+  );
+}
 
 interface NavBarProps {
   goToCreatorSignupPage: () => void;
@@ -18,6 +38,8 @@ declare global {
     };
   }
 }
+
+
 
 export default function NavBar({ goToCreatorSignupPage }: NavBarProps) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -33,7 +55,7 @@ export default function NavBar({ goToCreatorSignupPage }: NavBarProps) {
   const [walletBalance, setWalletBalance] = useState<number | null>(null);
   const [isLoadingBalance, setIsLoadingBalance] = useState(false);
   const [isCopied, setIsCopied] = useState(false);
-
+  console.log("userContext", userContext);
   /**
    * Handles the user sign-out process.
    * Clears user-related states like wallet address and balance.
@@ -122,45 +144,43 @@ export default function NavBar({ goToCreatorSignupPage }: NavBarProps) {
    */
   React.useEffect(() => {
     const initializeWallet = async () => {
-      // If no user, clear wallet states and exit
       if (!user) {
         setWalletAddress(null);
         setWalletBalance(null);
         return;
       }
 
-      // Check if user already has a Solana address
-      if (userContext.solana?.address) {
+      if (userHasWallet(userContext)) {
         const currentWalletAddress = userContext.solana.address;
         setWalletAddress(currentWalletAddress);
         await fetchWalletBalance(currentWalletAddress);
-      } else if (userContext.createWallet) {
-        // If no address but createWallet function is available, attempt to create
+      } else if (
+        "createWallet" in userContext &&
+        typeof userContext.createWallet === "function"
+      ) {
         try {
           setIsCreatingWallet(true);
           await userContext.createWallet();
-          // After creation, check for the new address
-          const newWalletAddress = userContext.solana?.address;
-          if (newWalletAddress) {
+          if (userHasWallet(userContext)) {
+            const newWalletAddress = userContext.solana.address;
             setWalletAddress(newWalletAddress);
             await fetchWalletBalance(newWalletAddress);
           }
         } catch (error) {
           console.error("Failed to create wallet:", error);
-          setWalletAddress(null); // Clear address on creation failure
+          setWalletAddress(null);
           setWalletBalance(null);
         } finally {
           setIsCreatingWallet(false);
         }
       } else {
-        // No user, no existing wallet, and no createWallet function
         setWalletAddress(null);
         setWalletBalance(null);
       }
     };
 
     initializeWallet();
-  }, [userContext, fetchWalletBalance]); // Added fetchWalletBalance to dependency array for completeness, though it's useCallback'd
+  }, [userContext, fetchWalletBalance]);
 
   /**
    * Effect for closing dropdowns when clicking outside.
@@ -326,7 +346,7 @@ export default function NavBar({ goToCreatorSignupPage }: NavBarProps) {
                     {walletAddress && (
                       <div className="bg-gray-50 p-2 rounded flex items-center justify-between">
                         <div className="flex items-center">
-                          <Wallet className="h-3 w-3 text-gray-700 mr-2" />
+                          <WalletIcon className="h-3 w-3 text-gray-700 mr-2" />
                           <span
                             className="text-xs font-mono text-gray-700"
                             title={walletAddress}
@@ -506,7 +526,7 @@ export default function NavBar({ goToCreatorSignupPage }: NavBarProps) {
                       {walletAddress && (
                         <div className="bg-gray-50 p-2 rounded flex items-center justify-between">
                           <div className="flex items-center">
-                            <Wallet className="h-3 w-3 text-gray-700 mr-2" />
+                            <WalletIcon className="h-3 w-3 text-gray-700 mr-2" />
                             <span
                               className="text-xs font-mono text-gray-700"
                               title={walletAddress}

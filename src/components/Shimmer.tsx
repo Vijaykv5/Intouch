@@ -1,4 +1,3 @@
-import React from "react";
 
 /**
  * Simple shimmer/skeleton loader for avatar and text.
